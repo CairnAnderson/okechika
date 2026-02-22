@@ -7946,6 +7946,28 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   const dictFile = document.getElementById('dictFile');
 
+  // インポート（ファイル選択）
+  if(importDict) importDict.addEventListener('click', ()=>{
+    if(dictFile){
+      dictFile.click();
+    }else{
+      showToast('ファイル入力が見つからない', false);
+    }
+  });
+
+  // 全消去
+  if(clearDict) clearDict.addEventListener('click', ()=>{
+    const ok = confirm('辞書データを全て消去します。よろしいですか？');
+    if(!ok) return;
+    dict = {};
+    try{ localStorage.removeItem(DICT_KEY); }catch{}
+    updateDictCount();
+    showToast('辞書を全消去した', true);
+    // 右パネルが開いている場合の表示更新
+    if(currentCp !== null && typeof refreshSide === 'function') window.refreshSide(currentCp);
+  });
+
+
   function importDictObject(obj){
     if(!obj || typeof obj !== 'object'){
       showToast('JSONの形式が違うかも', false);
