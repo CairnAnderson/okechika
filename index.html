@@ -7405,6 +7405,9 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     c.el.dataset.okecode = code;
     okecodeByCp.set(c.cp, code);
     c.el.title = `${code} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+    // セル下の表示コードを「桶地下文字コード」にする
+    const codeEl = c.el.querySelector('.code');
+    if(codeEl) codeEl.textContent = code;
   });
 
 ;
@@ -7659,7 +7662,26 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
             const k = keyForCp(cp);
             const entry = dict[k];
             const r = (entry?.reading || '').trim();
-            const parts = r ? r.split(/[\s,，、\/|]+/).filter(Boolean) : [];
+            let parts = r ? r.split(/[\s,，、\/|]+/).filter(Boolean) : [];
+            // 復号モードでも「代表候補」は最小コード優先（同じ読みの候補が複数ある場合）
+            const minCodeForReading = (token)=>{
+              if(!token) return Number.POSITIVE_INFINITY;
+              const cands = getCandidates(token);
+              if(!cands || cands.length===0) return Number.POSITIVE_INFINITY;
+              // 最小 okecode を返す
+              let best = Number.POSITIVE_INFINITY;
+              for(const cc of cands){
+                const o = okeCodeOrder(cc.okecode);
+                if(o < best) best = o;
+              }
+              return best;
+            };
+            parts = parts.slice().sort((a,b)=>{
+              const aa = minCodeForReading(a);
+              const bb = minCodeForReading(b);
+              if(aa!==bb) return aa-bb;
+              return a.localeCompare(b,'ja');
+            });
             const picked = parts[0] || '';
             primaryParts.push(picked || '□');
             candParts.push(okecodeByCp.get(cp) || '--');
