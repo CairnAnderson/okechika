@@ -7375,12 +7375,15 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const okecodeByCp = new Map();
 
   function toOkeCode(n){
-    // n: 1-based
-    // 新形式: アルファベット→数字 (A00, A01 ... A69, B00 ... T69)
-    const perLetter = 70; // 00〜69
-    const letterIdx = Math.floor((n - 1) / perLetter);
-    const num = (n - 1) % perLetter;
-    const numStr = String(num).padStart(2,'0');
+    // n: 1-based（コードポイント順に連番で割り当て）
+    // 新形式: アルファベット→数字（A00〜T69）
+    // 連番 i(0-based) に対して:
+    //   ページ = floor(i/20) -> 00〜69
+    //   文字 = i%20 -> A〜T
+    const i = n - 1;
+    const page = Math.floor(i / 20);      // 00〜69
+    const letterIdx = i % 20;             // 0〜19 -> A〜T
+    const numStr = String(page).padStart(2,'0');
     const letter = OKE_LETTERS[letterIdx] || 'A';
     return letter + numStr;
   }
@@ -7389,10 +7392,20 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   cells.sort((a,b)=>a.cp-b.cp);
   cells.forEach((c, i)=>{
     const code = toOkeCode(i+1);
-    const perLetter = 70; // 00〜69
-    // ページは数字(00〜69)で区分: A00〜T00 が同じページ、A01〜T01 が同じページ…
-    const pageNum = (i % perLetter) + 1; // 1-based (00=1)
+    // 20文字ずつ1ページ（コードポイント順）
+    // page: 1-based (01..70) => ラベルは 00..69
+    const pageNum = Math.floor(i / 20) + 1;
+
+    c.okecode = code;
+    c.el.dataset.okecode = code;
+    okecodeByCp.set(c.cp, code);
     c.page = pageNum;
+    c.el.title = `${code} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+
+    // セル下の表示コードを「桶地下文字コード」にする
+    const codeEl = c.el.querySelector('.code');
+    if(codeEl) codeEl.textContent = code;
+  });
     c.okeLetter = OKE_LETTERS[Math.floor(i / 70)] || 'A';
 
     c.okecode = code;
@@ -7471,12 +7484,13 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   // okecode order (new): A00 is smallest ... T69 is largest
   function okeCodeOrder(code){
+    // A00 が最小、T69 が最大（コードポイント順の連番に一致）
     if(!code) return Number.POSITIVE_INFINITY;
     const m = String(code).match(/^([A-T])(\d{2})$/);
     if(!m) return Number.POSITIVE_INFINITY;
     const letter = m[1].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
-    const num = parseInt(m[2],10);
-    return letter*100 + num;
+    const page = parseInt(m[2],10); // 00..69
+    return page*20 + letter;
   }
 
   function ensureReadingTag(cellEl){
@@ -7522,7 +7536,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   function updateCount(visible, tRaw){
     if(!count) return;
-    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}00〜${pageLabel(currentPage)}69）`;
+    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（A${pageLabel(currentPage)}〜T${pageLabel(currentPage)}）`;
     count.textContent = `${visible} / ${cells.length} 表示 ・ ${pageTxt}`;
     if(tHint){
       if(tRaw){
