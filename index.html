@@ -250,18 +250,18 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   </div>
 
   <div class="tSentence" id="tSentence">
-    <label>文章として出力（先頭候補で合成）</label>
+    <label id="tLabelPrimary">文章として出力（先頭候補で合成）</label>
     <div class="tSentenceRow">
       <textarea id="tOutPrimary" class="out1" readonly placeholder="ここに桶地下文字の出力が出る"></textarea>
       <button id="tCopyPrimary" class="icon copyBtn" title="出力をコピー">⧉</button>
     </div>
 
-    <label style="margin-top:10px">候補を含む文章（複数候補は [A/B] 形式）</label>
+    <label id="tLabelCandidates" style="margin-top:10px">候補を含む文章（複数候補は [A/B] 形式）</label>
     <div class="tSentenceRow">
       <textarea id="tOutCandidates" class="out2" readonly placeholder="ここに候補つき文章が出る"></textarea>
       <button id="tCopyCandidates" class="icon copyBtn" title="候補つき文章をコピー">⧉</button>
     </div>
-    <div class="hint">※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若いU+を採用。</div>
+    <div class="hint" id="tExplain">※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若いU+を採用。</div>
   </div>
 
   <div id="tOutput" class="tOutput"></div>
@@ -7342,6 +7342,9 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const tOutCandidates = document.getElementById('tOutCandidates');
   const tCopyPrimary = document.getElementById('tCopyPrimary');
   const tCopyCandidates = document.getElementById('tCopyCandidates');
+  const tLabelPrimary = document.getElementById('tLabelPrimary');
+  const tLabelCandidates = document.getElementById('tLabelCandidates');
+  const tExplain = document.getElementById('tExplain');
 
 
   const backdrop = document.getElementById('modalBackdrop');
@@ -7578,9 +7581,31 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   function renderTranslation(raw){
     if(!tOutput) return;
     const chars = splitChars(raw);
+
+    // 入力が「桶地下文字（U+4E00〜）」中心なら “復号（文字→読み）” モードにする
+    let glyphCount = 0;
+    let nonSpaceCount = 0;
+    for(const ch of chars){
+      if(ch==='\n' || ch==='\r' || ch===' ' || ch==='\t') continue;
+      nonSpaceCount++;
+      const cp = ch.codePointAt(0);
+      if(okecodeByCp.has(cp)) glyphCount++;
+    }
+    const decodeMode = glyphCount > 0 && glyphCount >= Math.max(1, Math.floor(nonSpaceCount*0.5));
+
+    // ラベル/説明を切り替え
+    if(tLabelPrimary) tLabelPrimary.textContent = decodeMode
+      ? '文章として出力（読み）'
+      : '文章として出力（先頭候補で合成）';
+    if(tLabelCandidates) tLabelCandidates.textContent = decodeMode
+      ? '桶地下文字コード列（00A 形式）'
+      : '候補を含む文章（複数候補は [A/B] 形式）';
+    if(tExplain) tExplain.textContent = decodeMode
+      ? '※桶地下文字を貼り付けると、登録済みの「読み」に変換する。未登録は □ 。'
+      : '※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若い桶地下文字コード（例: 00A が最小）を採用。';
+
     tOutput.innerHTML = '';
 
-    // 文章出力（順番を崩さずに合成）
     const primaryParts = [];
     const candParts = [];
 
@@ -7593,9 +7618,6 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
       const orig = document.createElement('div');
       orig.className = 'tOrig';
-      // 表示用（空白も見えるように）
-      const showChar = (ch===' ') ? '␠' : (ch==='\n' ? '↵' : ch);
-      orig.textContent = showChar;
 
       const meta = document.createElement('div');
       meta.style.opacity = '.75';
@@ -7611,6 +7633,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
       // 改行/空白は候補を出さず、そのまま
       if(ch==='\n' || ch==='\r'){
+        orig.textContent = '↵';
         primaryParts.push('\n');
         candParts.push('\n');
         const none = document.createElement('div');
@@ -7618,6 +7641,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
         none.textContent = '改行';
         candWrap.appendChild(none);
       }else if(ch===' '){
+        orig.textContent = '␠';
         primaryParts.push(' ');
         candParts.push(' ');
         const none = document.createElement('div');
@@ -7625,53 +7649,111 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
         none.textContent = '空白';
         candWrap.appendChild(none);
       }else{
-        const cands = getCandidates(ch);
-        if(cands.length===0){
-          primaryParts.push('□');
-          candParts.push('□');
-          const none = document.createElement('div');
-          none.className = 'tNone';
-          none.textContent = '候補なし（読み未登録 or 未対応）';
-          candWrap.appendChild(none);
-        }else{
-          // なるべくページ順/コードポイント順
-          cands.sort((a,b)=>okeCodeOrder(a.okecode)-okeCodeOrder(b.okecode));
+        const cp = ch.codePointAt(0);
 
-          // 文章出力: 先頭候補 + 候補つき
-          primaryParts.push(cands[0].glyph);
-          if(cands.length===1){
-            candParts.push(cands[0].glyph);
+        if(decodeMode){
+          // --- 復号: 桶地下文字 → 読み / コード ---
+          orig.textContent = ch;
+
+          if(okecodeByCp.has(cp)){
+            const k = keyForCp(cp);
+            const entry = dict[k];
+            const r = (entry?.reading || '').trim();
+            const parts = r ? r.split(/[\s,，、\/|]+/).filter(Boolean) : [];
+            const picked = parts[0] || '';
+            primaryParts.push(picked || '□');
+            candParts.push(okecodeByCp.get(cp) || '--');
+
+            // chips: 読み候補
+            if(parts.length===0){
+              const none = document.createElement('div');
+              none.className = 'tNone';
+              none.textContent = '読み未登録';
+              candWrap.appendChild(none);
+            }else{
+              for(const rr of parts){
+                const b = document.createElement('div');
+                b.className = 'tCand';
+                b.title = `${okecodeByCp.get(cp) || '--'} / U+${k} / ${ch}`;
+                const g = document.createElement('div');
+                g.className = 'g';
+                g.textContent = rr; // 読み
+                const meta2 = document.createElement('div');
+                meta2.className = 'meta';
+                const oke = document.createElement('div');
+                oke.className = 'oke';
+                oke.textContent = okecodeByCp.get(cp) || '--';
+                const u = document.createElement('div');
+                u.className = 'u';
+                u.textContent = 'U+' + k;
+                meta2.appendChild(oke);
+                meta2.appendChild(u);
+                b.appendChild(g);
+                b.appendChild(meta2);
+                b.addEventListener('click', ()=>openModal(cp));
+                candWrap.appendChild(b);
+              }
+            }
           }else{
-            candParts.push('[' + cands.map(x=>x.glyph).join('/') + ']');
+            // 桶地下の範囲外文字はそのまま通す
+            primaryParts.push(ch);
+            candParts.push(ch);
+            const none = document.createElement('div');
+            none.className = 'tNone';
+            none.textContent = '範囲外';
+            candWrap.appendChild(none);
           }
+        }else{
+          // --- 既存: 読み（文章）→ 桶地下文字候補 ---
+          orig.textContent = ch;
 
-          for(const c of cands){
-            const b = document.createElement('div');
-            b.className = 'tCand';
-            b.title = `${c.okecode} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+          const cands = getCandidates(ch);
+          if(cands.length===0){
+            primaryParts.push('□');
+            candParts.push('□');
+            const none = document.createElement('div');
+            none.className = 'tNone';
+            none.textContent = '候補なし（読み未登録 or 未対応）';
+            candWrap.appendChild(none);
+          }else{
+            // 文章出力: 文字コードが小さいものを優先（00A が最小）
+            cands.sort((a,b)=>okeCodeOrder(a.okecode)-okeCodeOrder(b.okecode));
 
-            const g = document.createElement('div');
-            g.className = 'g';
-            g.textContent = c.glyph;
+            primaryParts.push(cands[0].glyph);
+            if(cands.length===1){
+              candParts.push(cands[0].glyph);
+            }else{
+              candParts.push('[' + cands.map(x=>x.glyph).join('/') + ']');
+            }
 
-            const meta2 = document.createElement('div');
-            meta2.className = 'meta';
+            for(const c of cands){
+              const b = document.createElement('div');
+              b.className = 'tCand';
+              b.title = `${c.okecode} / U+${keyForCp(c.cp)} / ${c.glyph}`;
 
-            const oke = document.createElement('div');
-            oke.className = 'oke';
-            oke.textContent = c.okecode;
-            const u = document.createElement('div');
-            u.className = 'u';
-            u.textContent = 'U+' + keyForCp(c.cp);
+              const g = document.createElement('div');
+              g.className = 'g';
+              g.textContent = c.glyph;
 
-            meta2.appendChild(oke);
-            meta2.appendChild(u);
+              const meta2 = document.createElement('div');
+              meta2.className = 'meta';
 
-            b.appendChild(g);
-            b.appendChild(meta2);
+              const oke = document.createElement('div');
+              oke.className = 'oke';
+              oke.textContent = c.okecode;
+              const u = document.createElement('div');
+              u.className = 'u';
+              u.textContent = 'U+' + keyForCp(c.cp);
 
-            b.addEventListener('click', ()=>openModal(c.cp));
-            candWrap.appendChild(b);
+              meta2.appendChild(oke);
+              meta2.appendChild(u);
+
+              b.appendChild(g);
+              b.appendChild(meta2);
+
+              b.addEventListener('click', ()=>openModal(c.cp));
+              candWrap.appendChild(b);
+            }
           }
         }
       }
@@ -7681,8 +7763,9 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     });
 
     if(tOutPrimary) tOutPrimary.value = primaryParts.join('');
-    if(tOutCandidates) tOutCandidates.value = candParts.join('');
+    if(tOutCandidates) tOutCandidates.value = candParts.join(decodeMode ? ' ' : '');
   }
+
 
 
   function applyFilter(){
