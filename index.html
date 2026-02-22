@@ -7315,6 +7315,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
+
 (function(){
   const grid = document.getElementById('grid');
   const topBtn = document.getElementById('topBtn');
@@ -8001,7 +8002,17 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       reader.readAsText(file);
     });
   }
-    // 2) execCommand fallback (一時textarea)
+
+  async function tryCopy(text){
+    if(!text) return false;
+    // 1) Clipboard API
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    }catch(e){ /* ignore */ }
+    // 2) execCommand fallback (iOSなど)
     try{
       const ta = document.createElement('textarea');
       ta.value = text;
@@ -8013,8 +8024,8 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       ta.select();
       const ok = document.execCommand('copy');
       ta.remove();
-      return ok;
-    }catch{
+      return !!ok;
+    }catch(e){
       return false;
     }
   }
