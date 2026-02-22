@@ -159,6 +159,36 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 @media (max-width:420px){
   .grid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));}
 }
+
+/* Translator (sentence -> candidate glyphs) */
+.translator{margin:0 -16px 12px; padding:12px 16px; background:rgba(255,255,255,.04); border:1px solid var(--line); border-left:none; border-right:none;}
+.translator.hidden{display:none;}
+.tHead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
+.tHead small{color:var(--muted); font-size:12px;}
+.tSentence{border:1px solid var(--line); border-radius:12px; padding:10px; background:rgba(0,0,0,.10); margin-bottom:10px;}
+.tSentenceRow{display:flex; gap:8px; align-items:stretch; flex-wrap:wrap; margin-top:8px;}
+.tSentence label{margin:0; font-size:12px; color:var(--muted); display:block;}
+.tSentence textarea{min-height:54px; max-height:140px;}
+.tSentence .out1{font-family:"Underground", system-ui, sans-serif; font-size:18px; line-height:1.4;}
+.tSentence .out2{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; opacity:.95;}
+.tSentence .copyBtn{align-self:flex-start;}
+.tOutput{display:flex; flex-direction:column; gap:10px;}
+.tToken{padding:10px 10px; border:1px solid var(--line); border-radius:12px; background:rgba(0,0,0,.10);}
+.tTokHead{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px;}
+.tOrig{font-size:18px; font-weight:700;}
+.tOrig code{font-size:12px; font-weight:600; opacity:.75; margin-left:8px;}
+.tCandidates{display:flex; flex-wrap:wrap; gap:8px;}
+.tCand{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,.05); cursor:pointer; user-select:none;}
+.tCand:active{transform:translateY(1px);}
+.tCand .g{font-family:"Underground", sans-serif; font-size:22px; line-height:1;}
+.tCand .meta{display:flex; flex-direction:column; gap:2px;}
+.tCand .meta .oke{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; opacity:.85;}
+.tCand .meta .u{font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:10px; opacity:.65;}
+.tNone{opacity:.65; font-size:12px; padding:6px 8px;}
+@media (max-width:520px){
+  .translator{padding:10px 12px;}
+  .tCand{padding:8px 9px;}
+}
 </style>
 
 <div class="toolbar">
@@ -190,6 +220,32 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       <button id="copyExport">コピー</button>
     </div>
   </details>
+</div>
+
+
+<div id="translator" class="translator hidden">
+  <div class="tHead">
+    <span class="badge">翻訳プレビュー</span>
+    <small id="tHint">検索欄に文章を入れると、順番どおりに候補を並べる</small>
+    <button id="tClose" class="icon" title="翻訳表示を閉じる">×</button>
+  </div>
+
+  <div class="tSentence" id="tSentence">
+    <label>文章として出力（先頭候補で合成）</label>
+    <div class="tSentenceRow">
+      <textarea id="tOutPrimary" class="out1" readonly placeholder="ここに桶地下文字の出力が出る"></textarea>
+      <button id="tCopyPrimary" class="icon copyBtn" title="出力をコピー">⧉</button>
+    </div>
+
+    <label style="margin-top:10px">候補を含む文章（複数候補は [A/B] 形式）</label>
+    <div class="tSentenceRow">
+      <textarea id="tOutCandidates" class="out2" readonly placeholder="ここに候補つき文章が出る"></textarea>
+      <button id="tCopyCandidates" class="icon copyBtn" title="候補つき文章をコピー">⧉</button>
+    </div>
+    <div class="hint">※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若いU+を採用。</div>
+  </div>
+
+  <div id="tOutput" class="tOutput"></div>
 </div>
 
 <div class="grid" id="grid">
@@ -7261,6 +7317,15 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const nextPage = document.getElementById('nextPage');
   const pageSelect = document.getElementById('pageSelect');
 
+  const translator = document.getElementById('translator');
+  const tOutput = document.getElementById('tOutput');
+  const tHint = document.getElementById('tHint');
+  const tClose = document.getElementById('tClose');
+  const tOutPrimary = document.getElementById('tOutPrimary');
+  const tOutCandidates = document.getElementById('tOutCandidates');
+  const tCopyPrimary = document.getElementById('tCopyPrimary');
+  const tCopyCandidates = document.getElementById('tCopyCandidates');
+
 
   const backdrop = document.getElementById('modalBackdrop');
   const close = document.getElementById('close');
@@ -7428,10 +7493,17 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   updateDictCount();
   initPages();
 
-  function updateCount(visible){
+  function updateCount(visible, tRaw){
     if(!count) return;
     const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}A〜${pageLabel(currentPage)}T）`;
     count.textContent = `${visible} / ${cells.length} 表示 ・ ${pageTxt}`;
+    if(tHint){
+      if(tRaw){
+        tHint.textContent = `入力 ${Array.from(tRaw).length}文字（候補は読み方から検索）`;
+      }else{
+        tHint.textContent = '検索欄に文章を入れると、順番どおりに候補を並べる';
+      }
+    }
   }
 
   function normalizeQuery(q){
@@ -7443,9 +7515,169 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     return /^[0-9A-F]{2,6}$/.test(t) ? t : null;
   }
 
+  // --- 翻訳（文章→候補グリフ列）---
+  function splitChars(str){
+    return Array.from(str || '');
+  }
+
+  function normalizeReading(r){
+    return (r||'').trim();
+  }
+
+  function readingMatches(reading, token){
+    const r = normalizeReading(reading);
+    if(!r) return false;
+    // まずは区切りでトークン化して完全一致
+    const parts = r.split(/[\s,，、\/|]+/).filter(Boolean);
+    if(parts.includes(token)) return true;
+    // 1文字入力（かな/漢字など）の場合は部分一致も許可
+    if(token && token.length===1 && r.includes(token)) return true;
+    return false;
+  }
+
+  function getCandidates(token){
+    const out = [];
+    for(const c of cells){
+      const k = keyForCp(c.cp);
+      const entry = dict[k];
+      if(entry && entry.reading && readingMatches(entry.reading, token)){
+        out.push(c);
+      }
+    }
+    return out;
+  }
+
+  function renderTranslation(raw){
+    if(!tOutput) return;
+    const chars = splitChars(raw);
+    tOutput.innerHTML = '';
+
+    // 文章出力（順番を崩さずに合成）
+    const primaryParts = [];
+    const candParts = [];
+
+    chars.forEach((ch, idx)=>{
+      const tok = document.createElement('div');
+      tok.className = 'tToken';
+
+      const head = document.createElement('div');
+      head.className = 'tTokHead';
+
+      const orig = document.createElement('div');
+      orig.className = 'tOrig';
+      // 表示用（空白も見えるように）
+      const showChar = (ch===' ') ? '␠' : (ch==='\n' ? '↵' : ch);
+      orig.textContent = showChar;
+
+      const meta = document.createElement('div');
+      meta.style.opacity = '.75';
+      meta.style.fontSize = '12px';
+      meta.textContent = `#${idx+1}`;
+
+      head.appendChild(orig);
+      head.appendChild(meta);
+      tok.appendChild(head);
+
+      const candWrap = document.createElement('div');
+      candWrap.className = 'tCandidates';
+
+      // 改行/空白は候補を出さず、そのまま
+      if(ch==='\n' || ch==='\r'){
+        primaryParts.push('\n');
+        candParts.push('\n');
+        const none = document.createElement('div');
+        none.className = 'tNone';
+        none.textContent = '改行';
+        candWrap.appendChild(none);
+      }else if(ch===' '){
+        primaryParts.push(' ');
+        candParts.push(' ');
+        const none = document.createElement('div');
+        none.className = 'tNone';
+        none.textContent = '空白';
+        candWrap.appendChild(none);
+      }else{
+        const cands = getCandidates(ch);
+        if(cands.length===0){
+          primaryParts.push('□');
+          candParts.push('□');
+          const none = document.createElement('div');
+          none.className = 'tNone';
+          none.textContent = '候補なし（読み未登録 or 未対応）';
+          candWrap.appendChild(none);
+        }else{
+          // なるべくページ順/コードポイント順
+          cands.sort((a,b)=>a.cp-b.cp);
+
+          // 文章出力: 先頭候補 + 候補つき
+          primaryParts.push(cands[0].glyph);
+          if(cands.length===1){
+            candParts.push(cands[0].glyph);
+          }else{
+            candParts.push('[' + cands.map(x=>x.glyph).join('/') + ']');
+          }
+
+          for(const c of cands){
+            const b = document.createElement('div');
+            b.className = 'tCand';
+            b.title = `${c.okecode} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+
+            const g = document.createElement('div');
+            g.className = 'g';
+            g.textContent = c.glyph;
+
+            const meta2 = document.createElement('div');
+            meta2.className = 'meta';
+
+            const oke = document.createElement('div');
+            oke.className = 'oke';
+            oke.textContent = c.okecode;
+            const u = document.createElement('div');
+            u.className = 'u';
+            u.textContent = 'U+' + keyForCp(c.cp);
+
+            meta2.appendChild(oke);
+            meta2.appendChild(u);
+
+            b.appendChild(g);
+            b.appendChild(meta2);
+
+            b.addEventListener('click', ()=>openModal(c.cp));
+            candWrap.appendChild(b);
+          }
+        }
+      }
+
+      tok.appendChild(candWrap);
+      tOutput.appendChild(tok);
+    });
+
+    if(tOutPrimary) tOutPrimary.value = primaryParts.join('');
+    if(tOutCandidates) tOutCandidates.value = candParts.join('');
+  }
+
+
   function applyFilter(){
-    const q = normalizeQuery(filter?.value);
-    const hx = q ? isHexLike(q) : false;
+    const raw = normalizeQuery(filter?.value);
+    const hx = raw ? isHexLike(raw) : false;
+
+    // 翻訳モード判定: 2文字以上で、hex検索っぽくない & 日本語/記号を含む
+    const translatorMode = !!(raw && !hx && raw.length >= 2 && /[^0-9A-Fa-fU\+\s]/.test(raw));
+
+    // 翻訳表示
+    if(translator) {
+      if(translatorMode){
+        renderTranslation(raw);
+        translator.classList.remove('hidden');
+      }else{
+        translator.classList.add('hidden');
+        if(tOutput) tOutput.innerHTML = '';
+      }
+    }
+
+    // グリッド側フィルタ: 翻訳モード中は "未フィルタ"（ページだけで絞る）
+    const q = translatorMode ? '' : raw;
+    const hx2 = q ? isHexLike(q) : false;
     const needle = q ? q.toUpperCase() : '';
     let visible = 0;
 
@@ -7453,7 +7685,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       const inPage = (c.page === currentPage);
       let match = true;
       if(q){
-        if(hx){
+        if(hx2){
           match = ('U+' + keyForCp(c.cp)).includes(needle) || keyForCp(c.cp).includes(needle);
         }else{
           match = (c.glyph && c.glyph.includes(q)) || (c.okecode && c.okecode.includes(needle));
@@ -7463,7 +7695,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       c.el.style.display = show ? '' : 'none';
       if(show) visible++;
     }
-    updateCount(visible);
+    updateCount(visible, translatorMode ? raw : null);
   }
 
   let filterT = null;
@@ -7645,6 +7877,21 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       return false;
     }
   }
+
+  // 翻訳出力のコピー
+  if(tCopyPrimary) tCopyPrimary.addEventListener('click', async ()=>{
+    const ok = await tryCopy(tOutPrimary?.value || '');
+    showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
+  });
+  if(tCopyCandidates) tCopyCandidates.addEventListener('click', async ()=>{
+    const ok = await tryCopy(tOutCandidates?.value || '');
+    showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
+  });
+
+  // 翻訳表示を閉じる
+  if(tClose) tClose.addEventListener('click', ()=>{
+    translator?.classList.add('hidden');
+  });
 
   copyBtn.addEventListener('click', async ()=>{
     const ok = await tryCopy(codeField.value);
