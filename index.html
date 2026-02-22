@@ -34,21 +34,104 @@ button{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(
 button.primary{border-color: rgba(124,92,255,.65); background: rgba(124,92,255,.20);}
 small{color:var(--muted);}
 
-/* Modal */
-#modalBackdrop{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;
-                background: rgba(0,0,0,.45); z-index:9999;}
-#modal{width:min(680px, 100%); border-radius:16px 16px 0 0; background: var(--panel);
-        border:1px solid rgba(255,255,255,.18); padding:14px; }
-#modal h2{margin:0 0 10px; font-size:16px;}
-#modal .bigGlyph{font-family:"Underground", sans-serif; font-size:54px; line-height:1; 
-                  padding:12px 14px; border-radius:14px; background: rgba(255,255,255,.06);
-                  border:1px solid rgba(255,255,255,.12); display:inline-block;}
+
+/* Modal (スマホ優先のボトムシート) */
+#modalBackdrop{
+  position:fixed; inset:0;
+  display:none;
+  align-items:flex-end; justify-content:center;
+  background: rgba(0,0,0,.45);
+  z-index:9999;
+  padding: 10px;
+}
+#modal{
+  width:min(640px, 100%);
+  max-height: 82vh;
+  overflow:hidden;
+  border-radius:16px;
+  background: var(--panel);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+#modal .modalHeader{
+  display:flex; align-items:flex-start; justify-content:space-between;
+  gap:10px;
+  padding: 12px 12px 10px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+#modal .modalHeaderLeft{
+  display:flex; gap:10px; align-items:flex-start;
+  min-width:0;
+}
+#modal h2{margin:0; font-size:14px; letter-spacing:.02em;}
+#modal .titleRow{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+#modal .bigGlyph{
+  font-family:"Underground", sans-serif;
+  font-size:46px; line-height:1;
+  width: 64px; height: 64px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:14px;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  flex: 0 0 auto;
+}
+#modal .meta{min-width:0; flex:1;}
+#modal .metaRow{
+  display:grid;
+  grid-template-columns: 120px 1fr auto;
+  gap:8px;
+  align-items:center;
+  margin-top:8px;
+}
+#modal .label{font-size:12px; color: var(--muted);}
 #modal .mono{font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
-#codeField{width:100%;}
-.hint{font-size:12px; color: var(--muted); line-height:1.35; margin-top:8px;}
-.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:18px;
-        background: rgba(0,0,0,.75); color:white; padding:10px 12px; border-radius:12px;
-        font-size:13px; display:none; z-index: 10000; border:1px solid rgba(255,255,255,.18);}
+#modal input.mono{width:100%;}
+#modal .mini{
+  padding:7px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size:12px;
+}
+#modal .iconBtn{
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size:14px;
+  line-height:1;
+}
+#modal .modalBody{
+  padding: 10px 12px 12px;
+  overflow:auto;
+  max-height: calc(82vh - 86px);
+}
+#modal .field{margin-top:10px;}
+#modal .field label{display:block; font-size:12px; color: var(--muted); margin-bottom:6px;}
+#modal #readingField{width:100%;}
+#modal #noteField{width:100%; min-height: 140px; resize: vertical;}
+#modal .modalActions{
+  display:flex; gap:8px; flex-wrap:wrap;
+  margin-top: 12px;
+}
+#modal .modalActions button{flex: 1 1 auto;}
+.hint{font-size:12px; color: var(--muted); line-height:1.35; margin-top:10px;}
+/* Desktop: 中央に小さめダイアログ */
+@media (min-width: 760px){
+  #modalBackdrop{align-items:center; padding: 18px;}
+  #modal{max-height: 78vh;}
+  #modal .modalBody{max-height: calc(78vh - 86px);}
+}
+.toast{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:18px;
+  background: rgba(0,0,0,.75); color:white;
+  padding:10px 12px; border-radius:12px;
+  font-size:13px; display:none; z-index: 10000;
+  border:1px solid rgba(255,255,255,.18);
+}
 
 
 .reading{font-size:11px;opacity:.85;margin-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color: rgba(255,255,255,.78);}
@@ -86,7 +169,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <details style="margin-top:10px" id="dictPanel">
     <summary style="cursor:pointer; color:var(--muted);">インポート/エクスポート詳細（JSONテキスト）</summary>
     <p class="hint" style="margin-top:8px">貼り付けて「読み込み」を押すとマージされる（同じU+は上書き）。</p>
-    <textarea id="dictText" placeholder='例: {"4E00":{"reading":"...","gloss":"...","note":"..."}}'></textarea>
+    <textarea id="dictText" placeholder='例: {"4E00":{"reading":"...","note":"..."}}'></textarea>
     <div class="row" style="margin-top:10px">
       <button id="doImport" class="primary">このテキストを読み込み</button>
       <button id="fillExport">ここに書き出す</button>
@@ -7099,50 +7182,58 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
 </div>
 
+
 <div id="modalBackdrop">
-  <div id="modal" role="dialog" aria-modal="true">
-    <div class="row" style="justify-content:space-between;">
-      <h2 id="modalTitle">詳細</h2>
-      <button id="close">閉じる</button>
+  <div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modalHeader">
+      <div class="modalHeaderLeft">
+        <div class="bigGlyph" id="modalGlyph">?</div>
+        <div class="meta">
+          <div class="titleRow">
+            <h2 id="modalTitle">詳細</h2>
+            <span class="badge" id="okecodeBadge">--</span>
+          </div>
+          <div class="metaRow">
+            <span class="label">元の文字コード</span>
+            <input id="codeField" class="mono" readonly value="U+0000" />
+            <button class="mini" id="copyBtn" title="コピー">Copy</button>
+          </div>
+          <div class="metaRow">
+            <span class="label">桶地下文字コード</span>
+            <input id="okecodeField" class="mono" readonly value="01A" />
+            <button class="mini" id="copyOkeBtn" title="コピー">Copy</button>
+          </div>
+        </div>
+      </div>
+      <button id="close" class="iconBtn" aria-label="閉じる">✕</button>
     </div>
 
-    <div class="row" style="gap:14px; align-items:flex-start;">
-      <div>
-        <div class="bigGlyph" id="modalGlyph">?</div>
-        <div class="hint">（これが桶地下グリフ）</div>
-      </div>
-      <div style="flex:1; min-width: 220px;">
-        <div class="hint">コードポイント（U+XXXX）</div>
-        <input id="codeField" class="mono" readonly value="U+0000" />
-        <div class="hint" style="margin-top:8px;">グリフ（文字）</div>
-        <input id="glyphField" class="mono" readonly value="?" />
-                <div class="hint" style="margin-top:10px;">読み（辞書）</div>
+    <div class="modalBody">
+      <div class="field">
+        <label for="readingField">読み方</label>
         <input id="readingField" placeholder="例: か / ka / ???" autocomplete="off" />
-        <div class="hint" style="margin-top:8px;">意味・注釈（任意）</div>
-        <input id="glossField" placeholder="例: 〜を示す / Aを表す" autocomplete="off" />
-        <label for="noteField">メモ（任意・長文OK）</label>
-        <textarea id="noteField" placeholder="解析メモ、出典、例文、仮説など"></textarea>
-        <div class="row" style="margin-top:10px;">
-          <button class="primary" id="saveDictBtn">保存</button>
-          <button id="deleteDictBtn">この項目を削除</button>
-        </div>
+      </div>
 
-<div class="row" style="margin-top:10px;">
-          <button class="primary" id="copyBtn">コードをコピー</button>
-          <button id="copyGlyphBtn">グリフをコピー</button>
-          <button id="selectBtn">選択</button>
-          <button id="jumpHereBtn">ここへリンク</button>
-        </div>
-        <div class="hint">
-          コピーが失敗する環境では「選択」→手動コピーしてね。<br>
-          （ローカルHTML / 一部ブラウザは clipboard API をブロックすることがある）
-        </div>
+      <div class="field">
+        <label for="noteField">メモ</label>
+        <textarea id="noteField" placeholder="解析メモ、出典、例文、仮説など"></textarea>
+      </div>
+
+      <div class="modalActions">
+        <button class="primary" id="saveDictBtn">保存</button>
+        <button id="deleteDictBtn">削除</button>
+        <button id="jumpHereBtn">リンク</button>
+      </div>
+
+      <div class="hint" id="modalHint">
+        ※ 辞書はこの端末のブラウザに保存されます（localStorage）。たまにJSONでバックアップ推奨。
       </div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+ id="toast"></div>
 
 <script>
 (function(){
@@ -7159,14 +7250,13 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const close = document.getElementById('close');
   const modalGlyph = document.getElementById('modalGlyph');
   const codeField = document.getElementById('codeField');
-  const glyphField = document.getElementById('glyphField');
+  const okecodeField = document.getElementById('okecodeField');
+  const okecodeBadge = document.getElementById('okecodeBadge');
   const copyBtn = document.getElementById('copyBtn');
-  const copyGlyphBtn = document.getElementById('copyGlyphBtn');
-  const selectBtn = document.getElementById('selectBtn');
+  const copyOkeBtn = document.getElementById('copyOkeBtn');
   const jumpHereBtn = document.getElementById('jumpHereBtn');
   const toast = document.getElementById('toast');
   const readingField = document.getElementById('readingField');
-  const glossField = document.getElementById('glossField');
   const noteField = document.getElementById('noteField');
   const saveDictBtn = document.getElementById('saveDictBtn');
   const deleteDictBtn = document.getElementById('deleteDictBtn');
@@ -7188,12 +7278,36 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     cp: Number(cell.dataset.cp),
     code: cell.querySelector('.code')?.textContent || '',
     glyph: cell.querySelector('.glyph')?.textContent || ''
-  }));
+  }))
+  // --- 桶地下文字コード（01A〜01T, 02A〜02T ...）を割り当て ---
+  const OKE_LETTERS = 'ABCDEFGHIJKLMNOPQRST'.split(''); // A〜T (20文字)
+  /** @type {Map<number,string>} */
+  const okecodeByCp = new Map();
+
+  function toOkeCode(n){
+    // n: 1-based
+    const idx = (n - 1) % OKE_LETTERS.length;
+    const num = Math.floor((n - 1) / OKE_LETTERS.length) + 1;
+    const numStr = String(num).padStart(2,'0'); // 01, 02 ...
+    return numStr + OKE_LETTERS[idx];
+  }
+
+  // cells はコードポイント順に並んでいる前提
+  cells.sort((a,b)=>a.cp-b.cp);
+  cells.forEach((c, i)=>{
+    const code = toOkeCode(i+1);
+    c.okecode = code;
+    c.el.dataset.okecode = code;
+    okecodeByCp.set(c.cp, code);
+    c.el.title = `${code} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+  });
+
+;
 
 
-  // --- 辞書（読み/意味/メモ）: localStorage に保存 ---
+  // --- 辞書（読み/メモ）: localStorage に保存 ---
   const DICT_KEY = 'okegeshita_dict_v1';
-  /** @type {Record<string, {reading?:string, gloss?:string, note?:string, updatedAt?:number}>} */
+  /** @type {Record<string, {reading?:string, note?:string, updatedAt?:number}>} */
   let dict = {};
 
   function loadDict(){
@@ -7250,7 +7364,6 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       if(!v || typeof v !== 'object') continue;
       dict[k.toUpperCase()] = {
         reading: String(v.reading ?? '').trim(),
-        gloss: String(v.gloss ?? '').trim(),
         note: String(v.note ?? '').trim(),
         updatedAt: Date.now()
       };
@@ -7345,14 +7458,15 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     currentCp = cp;
     const ch = String.fromCodePoint(cp);
     const k = keyForCp(cp);
+    const oke = okecodeByCp.get(cp) || '--';
 
     modalGlyph.textContent = ch;
     codeField.value = 'U+' + k;
-    glyphField.value = ch;
+    okecodeField.value = oke;
+    okecodeBadge.textContent = oke;
 
     const entry = dict[k] || {};
     if(readingField) readingField.value = entry.reading || '';
-    if(glossField) glossField.value = entry.gloss || '';
     if(noteField) noteField.value = entry.note || '';
 
     backdrop.style.display = 'flex';
@@ -7378,12 +7492,11 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     const k = keyForCp(currentCp);
     dict[k] = {
       reading: (readingField?.value || '').trim(),
-      gloss: (glossField?.value || '').trim(),
       note: (noteField?.value || '').trim(),
       updatedAt: Date.now()
     };
     // 空なら消す（ノイズ防止）
-    if(!dict[k].reading && !dict[k].gloss && !dict[k].note){
+    if(!dict[k].reading && !dict[k].note){
       delete dict[k];
       showToast('空だったので削除扱い', true);
     }else{
@@ -7405,9 +7518,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       renderReadingsOnGrid();
       showToast('削除した', true);
       // 入力欄も空に
-      if(readingField) readingField.value='';
-      if(glossField) glossField.value='';
-      if(noteField) noteField.value='';
+      if(readingField) readingField.value='';      if(noteField) noteField.value='';
     }else{
       showToast('まだ登録されてない', false);
     }
@@ -7501,19 +7612,12 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   copyBtn.addEventListener('click', async ()=>{
     const ok = await tryCopy(codeField.value);
-    showToast(ok ? 'コピーした' : 'コピー失敗…（選択して手動コピーしてね）', ok);
+    showToast(ok ? 'コピーした' : 'コピー失敗…（長押しでコピーしてね）', ok);
   });
 
-  copyGlyphBtn.addEventListener('click', async ()=>{
-    const ok = await tryCopy(glyphField.value);
-    showToast(ok ? 'グリフをコピーした' : 'コピー失敗…（選択して手動コピーしてね）', ok);
-  });
-
-  selectBtn.addEventListener('click', ()=>{
-    codeField.focus();
-    codeField.select();
-    codeField.setSelectionRange(0, 9999);
-    showToast('選択した（このままコピー）', true);
+  copyOkeBtn.addEventListener('click', async ()=>{
+    const ok = await tryCopy(okecodeField.value);
+    showToast(ok ? 'コピーした' : 'コピー失敗…（長押しでコピーしてね）', ok);
   });
 
   jumpHereBtn.addEventListener('click', ()=>{
