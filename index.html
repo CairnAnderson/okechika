@@ -7303,8 +7303,6 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 </div>
 
 <div class="toast" id="toast"></div>
- id="toast"></div>
-
 <script>
 (function(){
   const grid = document.getElementById('grid');
@@ -7368,7 +7366,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   function toOkeCode(n){
     // n: 1-based
     const idx = (n - 1) % OKE_LETTERS.length;
-    const num = Math.floor((n - 1) / OKE_LETTERS.length) + 1;
+    const num = Math.floor((n - 1) / OKE_LETTERS.length);
     const numStr = String(num).padStart(2,'0'); // 01, 02 ...
     return numStr + OKE_LETTERS[idx];
   }
@@ -7395,7 +7393,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const totalPages = Math.ceil(cells.length / PAGE_SIZE) || 1;
   let currentPage = 1;
 
-  function pageLabel(n){ return String(n).padStart(2,'0'); }
+  function pageLabel(n){ return String(n-1).padStart(2,'0'); }
 
   function initPages(){
     if(!pageSelect) return;
@@ -7705,10 +7703,19 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   }
 
   function showToast(msg, ok=true){
+    if(!toast) return;
     toast.textContent = msg;
     toast.style.display = 'block';
+    toast.style.opacity = '0';
     toast.style.borderColor = ok ? 'rgba(43,213,118,.35)' : 'rgba(255,77,109,.35)';
-    setTimeout(()=>toast.style.display='none', 1200);
+    // fade in
+    requestAnimationFrame(()=>{ toast.style.opacity = '1'; });
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>{
+      toast.style.opacity = '0';
+      clearTimeout(showToast._t2);
+      showToast._t2 = setTimeout(()=>{ toast.style.display='none'; }, 180);
+    }, 1200);
   }
   topBtn.addEventListener('click', ()=>{ location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); });
 
