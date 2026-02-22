@@ -32,6 +32,22 @@ input{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(-
 button{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
         background:rgba(255,255,255,.10);color:var(--fg);cursor:pointer;}
 button.primary{border-color: rgba(124,92,255,.65); background: rgba(124,92,255,.20);}
+
+/* Compact toolbar controls */
+button.icon{padding:8px 10px; min-width:40px; line-height:1; font-size:18px;}
+.select{height:36px; border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:10px; padding:0 10px; font-size:13px;}
+button.icon.primary{border-color: rgba(124,92,255,.65); background: rgba(124,92,255,.20);}
+.spacer{flex:1;}
+.toolbar h1{font-size:15px; margin:0 0 6px;}
+.toolbar p{margin:0 0 8px; color:var(--muted); font-size:12px; line-height:1.35;}
+@media (max-width: 520px){
+  .toolbar{padding:8px; padding-top:calc(8px + env(safe-area-inset-top));}
+  .toolbar p{display:none;}
+  input{padding:8px 10px; min-width: 140px;}
+  button{padding:8px 10px;}
+  button.icon{font-size:18px;}
+  .row{gap:8px;}
+}
 small{color:var(--muted);}
 
 
@@ -148,25 +164,23 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 <div class="toolbar">
   <h1>桶地下フォント グリフプレビュー（埋め込み版 v2）</h1>
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
-  <div class="row">
-    <input id="jump" placeholder="ジャンプ: 例 4E00 / 5000 / 5377" inputmode="latin" autocomplete="off" />
-    <button class="primary" id="go">ジャンプ</button>
-    <button id="topBtn">先頭へ</button>
-    <small>※ダメならブラウザ検索（ページ内検索）で「U+4Fxx」等でも探せる</small>
-  </div>
-  <div class="row" style="margin-top:8px">
+<div class="row" style="margin-top:8px">
+    <button id="prevPage" class="icon" title="前のページ">‹</button>
+    <select id="pageSelect" class="select" title="ページ"></select>
+    <button id="nextPage" class="icon" title="次のページ">›</button>
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
     <button id="clearFilter">クリア</button>
     <small id="count"></small>
     <span class="badge" id="dictCount">辞書: 0件</span>
   </div>
-  <div class="row" style="margin-top:8px">
-    <button id="exportDict">辞書を書き出し(JSON)</button>
-    <button id="importDict" class="primary">辞書を読み込み(JSON)</button>
-    <button id="clearDict">辞書を全消去</button>
-    <small>※辞書はこの端末のブラウザに保存（localStorage）される</small>
-  </div>
-  <details style="margin-top:10px" id="dictPanel">
+  <div class="row compact" style="margin-top:6px">
+  <button id="exportDict" class="icon" title="辞書を書き出し(JSON)">⤓</button>
+  <button id="importDict" class="icon primary" title="辞書を読み込み(JSON)">⤒</button>
+  <button id="clearDict" class="icon" title="辞書を全消去">🗑</button>
+  <span class="spacer"></span>
+  <button id="topBtn" class="icon" title="先頭へ">↑</button>
+</div>
+<details style="margin-top:10px" id="dictPanel">
     <summary style="cursor:pointer; color:var(--muted);">インポート/エクスポート詳細（JSONテキスト）</summary>
     <p class="hint" style="margin-top:8px">貼り付けて「読み込み」を押すとマージされる（同じU+は上書き）。</p>
     <textarea id="dictText" placeholder='例: {"4E00":{"reading":"...","note":"..."}}'></textarea>
@@ -7238,13 +7252,15 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 <script>
 (function(){
   const grid = document.getElementById('grid');
-  const jump = document.getElementById('jump');
-  const go = document.getElementById('go');
   const topBtn = document.getElementById('topBtn');
 
   const filter = document.getElementById('filter');
   const clearFilter = document.getElementById('clearFilter');
   const count = document.getElementById('count');
+  const prevPage = document.getElementById('prevPage');
+  const nextPage = document.getElementById('nextPage');
+  const pageSelect = document.getElementById('pageSelect');
+
 
   const backdrop = document.getElementById('modalBackdrop');
   const close = document.getElementById('close');
@@ -7296,6 +7312,10 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   cells.sort((a,b)=>a.cp-b.cp);
   cells.forEach((c, i)=>{
     const code = toOkeCode(i+1);
+    const pageNum = Math.floor(i / OKE_LETTERS.length) + 1; // 1-based
+    c.page = pageNum;
+    c.okeLetter = OKE_LETTERS[i % OKE_LETTERS.length];
+
     c.okecode = code;
     c.el.dataset.okecode = code;
     okecodeByCp.set(c.cp, code);
@@ -7304,6 +7324,37 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
 ;
 
+
+  // --- ページング（01: A〜T, 02: A〜T ...）---
+  const PAGE_SIZE = OKE_LETTERS.length; // 20
+  const totalPages = Math.ceil(cells.length / PAGE_SIZE) || 1;
+  let currentPage = 1;
+
+  function pageLabel(n){ return String(n).padStart(2,'0'); }
+
+  function initPages(){
+    if(!pageSelect) return;
+    pageSelect.innerHTML = '';
+    for(let p=1; p<=totalPages; p++){
+      const opt = document.createElement('option');
+      opt.value = String(p);
+      opt.textContent = pageLabel(p); // 01, 02 ...
+      pageSelect.appendChild(opt);
+    }
+    pageSelect.value = String(currentPage);
+  }
+
+  function setPage(p){
+    const np = Math.max(1, Math.min(totalPages, p));
+    if(np === currentPage) return;
+    currentPage = np;
+    if(pageSelect) pageSelect.value = String(currentPage);
+    applyFilter();
+  }
+
+  if(prevPage) prevPage.addEventListener('click', ()=>setPage(currentPage-1));
+  if(nextPage) nextPage.addEventListener('click', ()=>setPage(currentPage+1));
+  if(pageSelect) pageSelect.addEventListener('change', ()=>setPage(Number(pageSelect.value||'1')));
 
   // --- 辞書（読み/メモ）: localStorage に保存 ---
   const DICT_KEY = 'okegeshita_dict_v1';
@@ -7375,9 +7426,12 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   loadDict();
   updateDictCount();
+  initPages();
+
   function updateCount(visible){
     if(!count) return;
-    count.textContent = visible + ' / ' + cells.length + ' 表示';
+    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}A〜${pageLabel(currentPage)}T）`;
+    count.textContent = `${visible} / ${cells.length} 表示 ・ ${pageTxt}`;
   }
 
   function normalizeQuery(q){
@@ -7391,20 +7445,23 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   function applyFilter(){
     const q = normalizeQuery(filter?.value);
-    if(!q){
-      for(const c of cells) c.el.style.display = '';
-      updateCount(cells.length);
-      return;
-    }
-    const hx = isHexLike(q);
-    const needle = q.toUpperCase();
+    const hx = q ? isHexLike(q) : false;
+    const needle = q ? q.toUpperCase() : '';
     let visible = 0;
+
     for(const c of cells){
-      const hit = hx
-        ? (c.code.toUpperCase().includes('U+'+hx) || c.code.toUpperCase().includes(hx) || c.cp === parseInt(hx,16))
-        : (c.glyph.includes(q) || c.code.toUpperCase().includes(needle));
-      c.el.style.display = hit ? '' : 'none';
-      if(hit) visible++;
+      const inPage = (c.page === currentPage);
+      let match = true;
+      if(q){
+        if(hx){
+          match = ('U+' + keyForCp(c.cp)).includes(needle) || keyForCp(c.cp).includes(needle);
+        }else{
+          match = (c.glyph && c.glyph.includes(q)) || (c.okecode && c.okecode.includes(needle));
+        }
+      }
+      const show = inPage && match;
+      c.el.style.display = show ? '' : 'none';
+      if(show) visible++;
     }
     updateCount(visible);
   }
@@ -7421,27 +7478,6 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     toast.style.borderColor = ok ? 'rgba(43,213,118,.35)' : 'rgba(255,77,109,.35)';
     setTimeout(()=>toast.style.display='none', 1200);
   }
-
-  function normHex(v){
-    return v.trim().toUpperCase().replace(/^U\+/,'');
-  }
-
-  function doJump(){
-    const v = normHex(jump.value);
-    if(!v) return;
-    const cp = parseInt(v, 16);
-    if(!Number.isFinite(cp)) return alert('16進数で入れてね（例: 4E00）');
-    const el = document.getElementById('u' + cp.toString(16).toUpperCase().padStart(4,'0'));
-    if(!el) return alert('範囲外かも（4E00〜5377）');
-    // hashでも移動（JS無効環境向けの保険）
-    location.hash = el.id;
-    el.scrollIntoView({behavior:'smooth', block:'center'});
-    el.style.outline = '3px solid var(--accent)';
-    setTimeout(()=>el.style.outline='', 900);
-  }
-
-  go.addEventListener('click', doJump);
-  jump.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doJump(); });
   topBtn.addEventListener('click', ()=>{ location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); });
 
   if(filter){
@@ -7451,8 +7487,8 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   if(clearFilter){
     clearFilter.addEventListener('click', ()=>{ filter.value=''; applyFilter(); filter.focus(); });
   }
-  // 初期表示カウント
-  updateCount(cells.length);
+  // 初期表示
+  applyFilter();
 
   function openModal(cp){
     currentCp = cp;
