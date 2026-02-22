@@ -229,16 +229,8 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <span class="spacer"></span>
   <button id="topBtn" class="icon" title="先頭へ">↑</button>
 </div>
-<details style="margin-top:10px" id="dictPanel">
-    <summary style="cursor:pointer; color:var(--muted);">インポート/エクスポート詳細（JSONテキスト）</summary>
-    <p class="hint" style="margin-top:8px">貼り付けて「読み込み」を押すとマージされる（同じU+は上書き）。</p>
-    <textarea id="dictText" placeholder='例: {"4E00":{"reading":"...","note":"..."}}'></textarea>
-    <div class="row" style="margin-top:10px">
-      <button id="doImport" class="primary">このテキストを読み込み</button>
-      <button id="fillExport">ここに書き出す</button>
-      <button id="copyExport">コピー</button>
-    </div>
-  </details>
+<input id="dictFile" type="file" accept="application/json,.json" style="display:none">
+
 </div>
 
 
@@ -7366,10 +7358,6 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const exportDict = document.getElementById('exportDict');
   const importDict = document.getElementById('importDict');
   const clearDict = document.getElementById('clearDict');
-  const dictText = document.getElementById('dictText');
-  const doImport = document.getElementById('doImport');
-  const fillExport = document.getElementById('fillExport');
-  const copyExport = document.getElementById('copyExport');
 
 
   let currentCp = null;
@@ -7387,19 +7375,23 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   function toOkeCode(n){
     // n: 1-based
-    const idx = (n - 1) % OKE_LETTERS.length;
-    const num = Math.floor((n - 1) / OKE_LETTERS.length);
-    const numStr = String(num).padStart(2,'0'); // 01, 02 ...
-    return numStr + OKE_LETTERS[idx];
+    // 新形式: アルファベット→数字 (A00, A01 ... A69, B00 ... T69)
+    const perLetter = 70; // 00〜69
+    const letterIdx = Math.floor((n - 1) / perLetter);
+    const num = (n - 1) % perLetter;
+    const numStr = String(num).padStart(2,'0');
+    const letter = OKE_LETTERS[letterIdx] || 'A';
+    return letter + numStr;
   }
 
   // cells はコードポイント順に並んでいる前提
   cells.sort((a,b)=>a.cp-b.cp);
   cells.forEach((c, i)=>{
     const code = toOkeCode(i+1);
-    const pageNum = Math.floor(i / OKE_LETTERS.length) + 1; // 1-based
+    const perLetter = 70; // 00〜69
+    const pageNum = Math.floor(i / perLetter) + 1; // 1-based (A=1)
     c.page = pageNum;
-    c.okeLetter = OKE_LETTERS[i % OKE_LETTERS.length];
+    c.okeLetter = OKE_LETTERS[Math.floor(i / 70)] || 'A';
 
     c.okecode = code;
     c.el.dataset.okecode = code;
@@ -7413,12 +7405,12 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 ;
 
 
-  // --- ページング（01: A〜T, 02: A〜T ...）---
-  const PAGE_SIZE = OKE_LETTERS.length; // 20
+  // --- ページング（A: 00〜69, B: 00〜69 ...）---
+  const PAGE_SIZE = 70; // 1ページ=00〜69 (70文字)
   const totalPages = Math.ceil(cells.length / PAGE_SIZE) || 1;
   let currentPage = 1;
 
-  function pageLabel(n){ return String(n-1).padStart(2,'0'); }
+  function pageLabel(n){ return OKE_LETTERS[(n-1)] || '?'; }
 
   function initPages(){
     if(!pageSelect) return;
@@ -7476,14 +7468,14 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   }
 
 
-  // okecode order: 00A is smallest ... 69T is largest
+  // okecode order (new): A00 is smallest ... T69 is largest
   function okeCodeOrder(code){
     if(!code) return Number.POSITIVE_INFINITY;
-    const m = String(code).match(/^(\d{2})([A-T])$/);
+    const m = String(code).match(/^([A-T])(\d{2})$/);
     if(!m) return Number.POSITIVE_INFINITY;
-    const page = parseInt(m[1],10);
-    const letter = m[2].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
-    return page*100 + letter;
+    const letter = m[1].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
+    const num = parseInt(m[2],10);
+    return letter*100 + num;
   }
 
   function ensureReadingTag(cellEl){
@@ -7529,7 +7521,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   function updateCount(visible, tRaw){
     if(!count) return;
-    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}A〜${pageLabel(currentPage)}T）`;
+    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}00〜${pageLabel(currentPage)}69）`;
     count.textContent = `${visible} / ${cells.length} 表示 ・ ${pageTxt}`;
     if(tHint){
       if(tRaw){
@@ -7601,11 +7593,11 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       ? '文章として出力（読み）'
       : '文章として出力（先頭候補で合成）';
     if(tLabelCandidates) tLabelCandidates.textContent = decodeMode
-      ? '桶地下文字コード列（00A 形式）'
+      ? '桶地下文字コード列（A00 形式）'
       : '候補を含む文章（複数候補は [A/B] 形式）';
     if(tExplain) tExplain.textContent = decodeMode
       ? '※桶地下文字を貼り付けると、登録済みの「読み」に変換する。未登録は □ 。'
-      : '※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若い桶地下文字コード（例: 00A が最小）を採用。';
+      : '※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若い桶地下文字コード（例: A00 が最小）を採用。';
 
     tOutput.innerHTML = '';
 
@@ -7738,7 +7730,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
             none.textContent = '候補なし（読み未登録 or 未対応）';
             candWrap.appendChild(none);
           }else{
-            // 文章出力: 文字コードが小さいものを優先（00A が最小）
+            // 文章出力: 文字コードが小さいものを優先（A00 が最小）
             cands.sort((a,b)=>okeCodeOrder(a.okecode)-okeCodeOrder(b.okecode));
 
             primaryParts.push(cands[0].glyph);
@@ -7951,57 +7943,42 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     showToast('書き出した', true);
   });
 
-  if(importDict) importDict.addEventListener('click', ()=>{
-    // パネルを開いてフォーカス
-    const panel = document.getElementById('dictPanel');
-    if(panel && !panel.open) panel.open = true;
-    dictText?.focus();
-    showToast('JSONを貼って「読み込み」', true);
-  });
 
-  if(fillExport) fillExport.addEventListener('click', ()=>{
-    if(dictText) dictText.value = JSON.stringify(dict, null, 2);
-    showToast('書き出した（欄に）', true);
-  });
+  const dictFile = document.getElementById('dictFile');
 
-  if(copyExport) copyExport.addEventListener('click', async ()=>{
-    const txt = dictText?.value || JSON.stringify(dict, null, 2);
-    const ok = await tryCopy(txt);
-    showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
-  });
-
-  if(doImport) doImport.addEventListener('click', ()=>{
-    let obj=null;
-    try{
-      obj = JSON.parse(dictText?.value || '{}');
-    }catch{
-      showToast('JSONとして読めなかった', false);
+  function importDictObject(obj){
+    if(!obj || typeof obj !== 'object'){
+      showToast('JSONの形式が違うかも', false);
       return;
     }
     mergeDict(obj);
-    showToast('読み込んだ（マージ）', true);
-  });
+    showToast('辞書を読み込んだ（マージ）', true);
+  }
 
-  if(clearDict) clearDict.addEventListener('click', ()=>{
-    const yes = confirm('辞書を全消去する？（この端末の保存データが消える）');
-    if(!yes) return;
-    dict = {};
-    saveDict();
-    renderReadingsOnGrid();
-    showToast('全消去した', true);
-  });
-
-  // 初期描画
-  renderReadingsOnGrid();
-
-  async function tryCopy(text){
-    // 1) navigator.clipboard
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      try{
-        await navigator.clipboard.writeText(text);
-        return true;
-      }catch{}
-    }
+  if(dictFile){
+    dictFile.addEventListener('change', (ev)=>{
+      const file = ev.target.files && ev.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const obj = JSON.parse(String(reader.result || '{}'));
+          importDictObject(obj);
+        }catch(e){
+          console.error(e);
+          showToast('JSONとして読めなかった', false);
+        }finally{
+          // 同じファイルを連続で読み込めるようにリセット
+          dictFile.value = '';
+        }
+      };
+      reader.onerror = ()=>{
+        showToast('ファイルが読めなかった', false);
+        dictFile.value = '';
+      };
+      reader.readAsText(file);
+    });
+  }
     // 2) execCommand fallback (一時textarea)
     try{
       const ta = document.createElement('textarea');
