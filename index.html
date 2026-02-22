@@ -7469,6 +7469,17 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     return cp.toString(16).toUpperCase().padStart(4,'0');
   }
 
+
+  // okecode order: 00A is smallest ... 69T is largest
+  function okeCodeOrder(code){
+    if(!code) return Number.POSITIVE_INFINITY;
+    const m = String(code).match(/^(\d{2})([A-T])$/);
+    if(!m) return Number.POSITIVE_INFINITY;
+    const page = parseInt(m[1],10);
+    const letter = m[2].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
+    return page*100 + letter;
+  }
+
   function ensureReadingTag(cellEl){
     let r = cellEl.querySelector('.reading');
     if(!r){
@@ -7624,7 +7635,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
           candWrap.appendChild(none);
         }else{
           // なるべくページ順/コードポイント順
-          cands.sort((a,b)=>a.cp-b.cp);
+          cands.sort((a,b)=>okeCodeOrder(a.okecode)-okeCodeOrder(b.okecode));
 
           // 文章出力: 先頭候補 + 候補つき
           primaryParts.push(cands[0].glyph);
@@ -7679,7 +7690,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     const hx = raw ? isHexLike(raw) : false;
 
     // 翻訳モード判定: 2文字以上で、hex検索っぽくない & 日本語/記号を含む
-    const translatorMode = !!(raw && !hx && raw.length >= 2 && /[^0-9A-Fa-fU\+\s]/.test(raw));
+    const translatorMode = !!(raw && !hx && raw.length >= 1 && /[^0-9A-Fa-fU\+\s]/.test(raw));
 
     // 翻訳表示
     if(translator) {
@@ -7831,7 +7842,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   if(exportDict) exportDict.addEventListener('click', ()=>{
     const txt = JSON.stringify(dict, null, 2);
-    downloadText('okegeshita_dict.json', txt);
+    downloadText('okechika_text.json', txt);
     showToast('書き出した', true);
   });
 
