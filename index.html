@@ -17,14 +17,14 @@
 body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:16px;}
 h1{margin:0 0 6px;font-size:18px;}
 p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.4;}
-.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;}
 .cell{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;background:rgba(255,255,255,.05);
       cursor:pointer; user-select:none; -webkit-tap-highlight-color: rgba(0,0,0,0);}
 .cell:active{transform: translateY(1px);}
 .glyph{font-family:"Underground", sans-serif;font-size:28px;line-height:1.2;}
 .code{font-size:11px;opacity:.7;margin-top:6px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
 
-.toolbar{position:sticky; top:0; z-index:5; padding:12px; margin:-16px -16px 12px; 
+.toolbar{position:sticky; top:0; z-index:5; padding:12px; padding-top:calc(12px + env(safe-area-inset-top)); margin:-16px -16px 12px; 
           background: rgba(15,15,18,.88); backdrop-filter: blur(10px); border-bottom:1px solid var(--line);}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 input{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
@@ -49,6 +49,17 @@ small{color:var(--muted);}
 .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:18px;
         background: rgba(0,0,0,.75); color:white; padding:10px 12px; border-radius:12px;
         font-size:13px; display:none; z-index: 10000; border:1px solid rgba(255,255,255,.18);}
+
+
+.reading{font-size:11px;opacity:.85;margin-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color: rgba(255,255,255,.78);}
+.badge{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted);}
+details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.04);}
+textarea{width:100%;min-height:120px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);padding:10px;font-size:14px;resize:vertical;}
+label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
+
+@media (max-width:420px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(74px,1fr));}
+}
 </style>
 
 <div class="toolbar">
@@ -60,6 +71,28 @@ small{color:var(--muted);}
     <button id="topBtn">先頭へ</button>
     <small>※ダメならブラウザ検索（ページ内検索）で「U+4Fxx」等でも探せる</small>
   </div>
+  <div class="row" style="margin-top:8px">
+    <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
+    <button id="clearFilter">クリア</button>
+    <small id="count"></small>
+    <span class="badge" id="dictCount">辞書: 0件</span>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="exportDict">辞書を書き出し(JSON)</button>
+    <button id="importDict" class="primary">辞書を読み込み(JSON)</button>
+    <button id="clearDict">辞書を全消去</button>
+    <small>※辞書はこの端末のブラウザに保存（localStorage）される</small>
+  </div>
+  <details style="margin-top:10px" id="dictPanel">
+    <summary style="cursor:pointer; color:var(--muted);">インポート/エクスポート詳細（JSONテキスト）</summary>
+    <p class="hint" style="margin-top:8px">貼り付けて「読み込み」を押すとマージされる（同じU+は上書き）。</p>
+    <textarea id="dictText" placeholder='例: {"4E00":{"reading":"...","gloss":"...","note":"..."}}'></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="doImport" class="primary">このテキストを読み込み</button>
+      <button id="fillExport">ここに書き出す</button>
+      <button id="copyExport">コピー</button>
+    </div>
+  </details>
 </div>
 
 <div class="grid" id="grid">
@@ -7079,10 +7112,24 @@ small{color:var(--muted);}
         <div class="hint">（これが桶地下グリフ）</div>
       </div>
       <div style="flex:1; min-width: 220px;">
-        <div class="hint">コードポイント</div>
+        <div class="hint">コードポイント（U+XXXX）</div>
         <input id="codeField" class="mono" readonly value="U+0000" />
+        <div class="hint" style="margin-top:8px;">グリフ（文字）</div>
+        <input id="glyphField" class="mono" readonly value="?" />
+                <div class="hint" style="margin-top:10px;">読み（辞書）</div>
+        <input id="readingField" placeholder="例: か / ka / ???" autocomplete="off" />
+        <div class="hint" style="margin-top:8px;">意味・注釈（任意）</div>
+        <input id="glossField" placeholder="例: 〜を示す / Aを表す" autocomplete="off" />
+        <label for="noteField">メモ（任意・長文OK）</label>
+        <textarea id="noteField" placeholder="解析メモ、出典、例文、仮説など"></textarea>
         <div class="row" style="margin-top:10px;">
-          <button class="primary" id="copyBtn">コピー</button>
+          <button class="primary" id="saveDictBtn">保存</button>
+          <button id="deleteDictBtn">この項目を削除</button>
+        </div>
+
+<div class="row" style="margin-top:10px;">
+          <button class="primary" id="copyBtn">コードをコピー</button>
+          <button id="copyGlyphBtn">グリフをコピー</button>
           <button id="selectBtn">選択</button>
           <button id="jumpHereBtn">ここへリンク</button>
         </div>
@@ -7104,16 +7151,156 @@ small{color:var(--muted);}
   const go = document.getElementById('go');
   const topBtn = document.getElementById('topBtn');
 
+  const filter = document.getElementById('filter');
+  const clearFilter = document.getElementById('clearFilter');
+  const count = document.getElementById('count');
+
   const backdrop = document.getElementById('modalBackdrop');
   const close = document.getElementById('close');
   const modalGlyph = document.getElementById('modalGlyph');
   const codeField = document.getElementById('codeField');
+  const glyphField = document.getElementById('glyphField');
   const copyBtn = document.getElementById('copyBtn');
+  const copyGlyphBtn = document.getElementById('copyGlyphBtn');
   const selectBtn = document.getElementById('selectBtn');
   const jumpHereBtn = document.getElementById('jumpHereBtn');
   const toast = document.getElementById('toast');
+  const readingField = document.getElementById('readingField');
+  const glossField = document.getElementById('glossField');
+  const noteField = document.getElementById('noteField');
+  const saveDictBtn = document.getElementById('saveDictBtn');
+  const deleteDictBtn = document.getElementById('deleteDictBtn');
+
+  const dictCount = document.getElementById('dictCount');
+  const exportDict = document.getElementById('exportDict');
+  const importDict = document.getElementById('importDict');
+  const clearDict = document.getElementById('clearDict');
+  const dictText = document.getElementById('dictText');
+  const doImport = document.getElementById('doImport');
+  const fillExport = document.getElementById('fillExport');
+  const copyExport = document.getElementById('copyExport');
+
 
   let currentCp = null;
+
+  const cells = Array.from(grid.querySelectorAll('.cell')).map(cell=>({
+    el: cell,
+    cp: Number(cell.dataset.cp),
+    code: cell.querySelector('.code')?.textContent || '',
+    glyph: cell.querySelector('.glyph')?.textContent || ''
+  }));
+
+
+  // --- 辞書（読み/意味/メモ）: localStorage に保存 ---
+  const DICT_KEY = 'okegeshita_dict_v1';
+  /** @type {Record<string, {reading?:string, gloss?:string, note?:string, updatedAt?:number}>} */
+  let dict = {};
+
+  function loadDict(){
+    try{
+      dict = JSON.parse(localStorage.getItem(DICT_KEY) || '{}') || {};
+    }catch{
+      dict = {};
+    }
+  }
+  function saveDict(){
+    try{
+      localStorage.setItem(DICT_KEY, JSON.stringify(dict));
+    }catch(e){
+      console.warn(e);
+      showToast('保存できなかった（容量制限かも）', false);
+    }
+    updateDictCount();
+  }
+
+  function updateDictCount(){
+    if(!dictCount) return;
+    dictCount.textContent = '辞書: ' + Object.keys(dict).length + '件';
+  }
+
+  function keyForCp(cp){
+    return cp.toString(16).toUpperCase().padStart(4,'0');
+  }
+
+  function ensureReadingTag(cellEl){
+    let r = cellEl.querySelector('.reading');
+    if(!r){
+      r = document.createElement('div');
+      r.className = 'reading';
+      cellEl.appendChild(r);
+    }
+    return r;
+  }
+
+  function renderReadingsOnGrid(){
+    for(const c of cells){
+      const k = keyForCp(c.cp);
+      const entry = dict[k];
+      const rEl = ensureReadingTag(c.el);
+      const text = entry?.reading ? entry.reading : '';
+      rEl.textContent = text;
+      rEl.style.display = text ? '' : 'none';
+    }
+  }
+
+  function mergeDict(incoming){
+    if(!incoming || typeof incoming !== 'object') return false;
+    for(const [k,v] of Object.entries(incoming)){
+      if(!/^[0-9A-F]{2,6}$/i.test(k)) continue;
+      if(!v || typeof v !== 'object') continue;
+      dict[k.toUpperCase()] = {
+        reading: String(v.reading ?? '').trim(),
+        gloss: String(v.gloss ?? '').trim(),
+        note: String(v.note ?? '').trim(),
+        updatedAt: Date.now()
+      };
+    }
+    saveDict();
+    renderReadingsOnGrid();
+    return true;
+  }
+
+  loadDict();
+  updateDictCount();
+  function updateCount(visible){
+    if(!count) return;
+    count.textContent = visible + ' / ' + cells.length + ' 表示';
+  }
+
+  function normalizeQuery(q){
+    return (q||'').trim();
+  }
+
+  function isHexLike(q){
+    const t = q.toUpperCase().replace(/^U\+/,'');
+    return /^[0-9A-F]{2,6}$/.test(t) ? t : null;
+  }
+
+  function applyFilter(){
+    const q = normalizeQuery(filter?.value);
+    if(!q){
+      for(const c of cells) c.el.style.display = '';
+      updateCount(cells.length);
+      return;
+    }
+    const hx = isHexLike(q);
+    const needle = q.toUpperCase();
+    let visible = 0;
+    for(const c of cells){
+      const hit = hx
+        ? (c.code.toUpperCase().includes('U+'+hx) || c.code.toUpperCase().includes(hx) || c.cp === parseInt(hx,16))
+        : (c.glyph.includes(q) || c.code.toUpperCase().includes(needle));
+      c.el.style.display = hit ? '' : 'none';
+      if(hit) visible++;
+    }
+    updateCount(visible);
+  }
+
+  let filterT = null;
+  function debounceFilter(){
+    clearTimeout(filterT);
+    filterT = setTimeout(applyFilter, 80);
+  }
 
   function showToast(msg, ok=true){
     toast.textContent = msg;
@@ -7144,11 +7331,30 @@ small{color:var(--muted);}
   jump.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doJump(); });
   topBtn.addEventListener('click', ()=>{ location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); });
 
+  if(filter){
+    filter.addEventListener('input', debounceFilter);
+    filter.addEventListener('keydown', (e)=>{ if(e.key==='Enter') applyFilter(); });
+  }
+  if(clearFilter){
+    clearFilter.addEventListener('click', ()=>{ filter.value=''; applyFilter(); filter.focus(); });
+  }
+  // 初期表示カウント
+  updateCount(cells.length);
+
   function openModal(cp){
     currentCp = cp;
     const ch = String.fromCodePoint(cp);
+    const k = keyForCp(cp);
+
     modalGlyph.textContent = ch;
-    codeField.value = 'U+' + cp.toString(16).toUpperCase().padStart(4,'0');
+    codeField.value = 'U+' + k;
+    glyphField.value = ch;
+
+    const entry = dict[k] || {};
+    if(readingField) readingField.value = entry.reading || '';
+    if(glossField) glossField.value = entry.gloss || '';
+    if(noteField) noteField.value = entry.note || '';
+
     backdrop.style.display = 'flex';
   }
   function closeModal(){ backdrop.style.display = 'none'; }
@@ -7156,11 +7362,116 @@ small{color:var(--muted);}
   close.addEventListener('click', closeModal);
   backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) closeModal(); });
 
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape' && backdrop.style.display==='flex') closeModal();
+  });
+
   grid.addEventListener('click', (e)=>{
     const cell = e.target.closest('.cell');
     if(!cell) return;
     openModal(Number(cell.dataset.cp));
   });
+
+  // 保存（辞書）
+  function upsertCurrentEntry(){
+    if(currentCp==null) return;
+    const k = keyForCp(currentCp);
+    dict[k] = {
+      reading: (readingField?.value || '').trim(),
+      gloss: (glossField?.value || '').trim(),
+      note: (noteField?.value || '').trim(),
+      updatedAt: Date.now()
+    };
+    // 空なら消す（ノイズ防止）
+    if(!dict[k].reading && !dict[k].gloss && !dict[k].note){
+      delete dict[k];
+      showToast('空だったので削除扱い', true);
+    }else{
+      showToast('保存した', true);
+    }
+    saveDict();
+    renderReadingsOnGrid();
+  }
+
+  if(saveDictBtn) saveDictBtn.addEventListener('click', upsertCurrentEntry);
+  if(readingField) readingField.addEventListener('keydown', (e)=>{ if(e.key==='Enter') upsertCurrentEntry(); });
+
+  if(deleteDictBtn) deleteDictBtn.addEventListener('click', ()=>{
+    if(currentCp==null) return;
+    const k = keyForCp(currentCp);
+    if(dict[k]){
+      delete dict[k];
+      saveDict();
+      renderReadingsOnGrid();
+      showToast('削除した', true);
+      // 入力欄も空に
+      if(readingField) readingField.value='';
+      if(glossField) glossField.value='';
+      if(noteField) noteField.value='';
+    }else{
+      showToast('まだ登録されてない', false);
+    }
+  });
+
+  // Toolbar 辞書操作
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+
+  if(exportDict) exportDict.addEventListener('click', ()=>{
+    const txt = JSON.stringify(dict, null, 2);
+    downloadText('okegeshita_dict.json', txt);
+    showToast('書き出した', true);
+  });
+
+  if(importDict) importDict.addEventListener('click', ()=>{
+    // パネルを開いてフォーカス
+    const panel = document.getElementById('dictPanel');
+    if(panel && !panel.open) panel.open = true;
+    dictText?.focus();
+    showToast('JSONを貼って「読み込み」', true);
+  });
+
+  if(fillExport) fillExport.addEventListener('click', ()=>{
+    if(dictText) dictText.value = JSON.stringify(dict, null, 2);
+    showToast('書き出した（欄に）', true);
+  });
+
+  if(copyExport) copyExport.addEventListener('click', async ()=>{
+    const txt = dictText?.value || JSON.stringify(dict, null, 2);
+    const ok = await tryCopy(txt);
+    showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
+  });
+
+  if(doImport) doImport.addEventListener('click', ()=>{
+    let obj=null;
+    try{
+      obj = JSON.parse(dictText?.value || '{}');
+    }catch{
+      showToast('JSONとして読めなかった', false);
+      return;
+    }
+    mergeDict(obj);
+    showToast('読み込んだ（マージ）', true);
+  });
+
+  if(clearDict) clearDict.addEventListener('click', ()=>{
+    const yes = confirm('辞書を全消去する？（この端末の保存データが消える）');
+    if(!yes) return;
+    dict = {};
+    saveDict();
+    renderReadingsOnGrid();
+    showToast('全消去した', true);
+  });
+
+  // 初期描画
+  renderReadingsOnGrid();
 
   async function tryCopy(text){
     // 1) navigator.clipboard
@@ -7170,12 +7481,18 @@ small{color:var(--muted);}
         return true;
       }catch{}
     }
-    // 2) execCommand fallback
+    // 2) execCommand fallback (一時textarea)
     try{
-      codeField.focus();
-      codeField.select();
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
       const ok = document.execCommand('copy');
-      codeField.setSelectionRange(0, 9999);
+      ta.remove();
       return ok;
     }catch{
       return false;
@@ -7185,6 +7502,11 @@ small{color:var(--muted);}
   copyBtn.addEventListener('click', async ()=>{
     const ok = await tryCopy(codeField.value);
     showToast(ok ? 'コピーした' : 'コピー失敗…（選択して手動コピーしてね）', ok);
+  });
+
+  copyGlyphBtn.addEventListener('click', async ()=>{
+    const ok = await tryCopy(glyphField.value);
+    showToast(ok ? 'グリフをコピーした' : 'コピー失敗…（選択して手動コピーしてね）', ok);
   });
 
   selectBtn.addEventListener('click', ()=>{
