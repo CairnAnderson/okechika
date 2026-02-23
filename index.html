@@ -208,24 +208,28 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   .translator{padding:10px 12px;}
   .tCand{padding:8px 9px;}
 }
+
+#topBtn{display:none !important;}
 </style>
 
 <div class="toolbar">
   <h1>桶地下文字変換ツール</h1>
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
 <div class="row" style="margin-top:8px">
-    <button id="prevPage" class="icon" title="前のページ">‹</button>
-    <select id="pageSelect" class="select" title="ページ"></select>
-    <button id="nextPage" class="icon" title="次のページ">›</button>
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
     <button id="clearFilter">クリア</button>
-    <small id="count"></small>
-    <span class="badge" id="dictCount">辞書: 0件</span>
   </div>
   <div class="row compact" style="margin-top:6px">
   <button id="exportDict" class="icon" title="辞書を書き出し(JSON)">⤓</button>
   <button id="importDict" class="icon primary" title="辞書を読み込み(JSON)">⤒</button>
   <button id="clearDict" class="icon" title="辞書を全消去">🗑</button>
+  <span class="gap" style="display:inline-block;width:18px"></span>
+  <button id="prevPage" class="icon" title="前のページ" type="button">‹</button>
+  <select id="pageSelect" class="select" title="ページ"></select>
+  <button id="nextPage" class="icon" title="次のページ" type="button">›</button>
+  <small id="count"></small>
+  <span class="badge" id="dictCount">辞書: 0件</span>
+
   <span class="spacer"></span>
   <button id="topBtn" class="icon" title="先頭へ">↑</button>
   <input id="dictFile" type="file" accept="application/json" style="display:none" />
