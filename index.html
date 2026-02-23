@@ -210,10 +210,71 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 }
 
 #topBtn{display:none !important;}
+
+/* --- v14 layout tweaks --- */
+.titleRow{display:flex; align-items:center; gap:10px;}
+.titleRow h1{margin:0; font-size:20px; line-height:1.1;}
+/* 辞書件数はタイトル右に固定 */
+#dictCount{white-space:nowrap}
+
+/* 翻訳プレビュー: オーバーレイ表示 */
+body.modalOpen{overflow:hidden;}
+.translator{position:fixed; inset:0; z-index:9999; display:flex; align-items:flex-start; justify-content:center;
+  padding:10px 10px; background:rgba(0,0,0,.35); backdrop-filter: blur(2px);}
+.translatorPanel{
+  width:min(980px, 100%);
+  max-height:74vh;
+  overflow:hidden;
+  background:rgba(18,18,22,.92);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  box-shadow:0 18px 60px rgba(0,0,0,.45);
+  padding:10px 12px;
+}
+@media (max-width:520px){
+  .translator{padding:8px 8px;}
+  .translatorPanel{max-height:74vh; padding:10px 10px;}
+}
+/* オーバーレイ内: スクロール無しのための表示制限（全文はコピー可能） */
+.outBox{
+  width:100%;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:10px;
+  padding:8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:13px;
+  line-height:1.25;
+  white-space:pre-wrap;
+  word-break:break-word;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3; /* 3行まで表示 */
+  overflow:hidden;
+  min-height:44px;
+}
+.tSentenceRow{display:flex; gap:8px; align-items:flex-start;}
+.tSentenceRow .icon.copyBtn{flex:0 0 auto; height:38px; width:42px;}
+
+.tPager{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.tPager .icon{width:34px; height:34px;}
+#tTokPageLabel{font-size:12px; opacity:.85; min-width:76px; text-align:center;}
+
+.tToken{max-height:180px; overflow:hidden;}
+.tCandidates{max-height:132px; overflow:hidden;}
+
 </style>
 
 <div class="toolbar">
-  <h1>桶地下文字変換ツール</h1>
+  <div class="titleRow">
+    <h1>桶地下文字変換ツール</h1>
+    <span class="badge" id="dictCount">辞書: 0件</span>
+  </div>
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
 <div class="row" style="margin-top:8px">
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
@@ -228,38 +289,46 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <select id="pageSelect" class="select" title="ページ"></select>
   <button id="nextPage" class="icon" title="次のページ" type="button">›</button>
   <small id="count"></small>
-  <span class="badge" id="dictCount">辞書: 0件</span>
+  
 
   <span class="spacer"></span>
-  <button id="topBtn" class="icon" title="先頭へ">↑</button>
-  <input id="dictFile" type="file" accept="application/json" style="display:none" />
+<input id="dictFile" type="file" accept="application/json" style="display:none" />
 </div>
 </div>
 
 
 <div id="translator" class="translator hidden">
+  <div class="translatorPanel">
   <div class="tHead">
     <span class="badge">翻訳プレビュー</span>
     <small id="tHint">検索欄に文章を入れると、順番どおりに候補を並べる</small>
+    
+    <div class="tPager" aria-label="翻訳トークンページ">
+      <button id="tTokPrev" class="icon" type="button" title="前の20文字">‹</button>
+      <span id="tTokPageLabel">1/1</span>
+      <button id="tTokNext" class="icon" type="button" title="次の20文字">›</button>
+    </div>
+
     <button id="tClose" class="icon" title="翻訳表示を閉じる">×</button>
   </div>
 
   <div class="tSentence" id="tSentence">
     <label id="tLabelPrimary">文章として出力（先頭候補で合成）</label>
     <div class="tSentenceRow">
-      <textarea id="tOutPrimary" class="out1" readonly placeholder="ここに桶地下文字の出力が出る"></textarea>
+      <div id="tOutPrimary" class="outBox" data-full="" aria-label="文章として出力"></div>
       <button id="tCopyPrimary" class="icon copyBtn" title="出力をコピー">⧉</button>
     </div>
 
     <label id="tLabelCandidates" style="margin-top:10px">候補を含む文章（複数候補は [A/B] 形式）</label>
     <div class="tSentenceRow">
-      <textarea id="tOutCandidates" class="out2" readonly placeholder="ここに候補つき文章が出る"></textarea>
+      <div id="tOutCandidates" class="outBox" data-full="" aria-label="候補を含む出力"></div>
       <button id="tCopyCandidates" class="icon copyBtn" title="候補つき文章をコピー">⧉</button>
     </div>
     <div class="hint" id="tExplain">※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若いU+を採用。</div>
   </div>
 
   <div id="tOutput" class="tOutput"></div>
+  </div>
 </div>
 
 <div class="grid" id="grid">
@@ -7333,6 +7402,12 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   const tOutput = document.getElementById('tOutput');
   const tHint = document.getElementById('tHint');
   const tClose = document.getElementById('tClose');
+  const tTokPrev = document.getElementById('tTokPrev');
+  const tTokNext = document.getElementById('tTokNext');
+  const tTokPageLabel = document.getElementById('tTokPageLabel');
+  let tTokPage = 0;
+  let tLastRaw = '';
+  const TOKS_PER_PAGE = 20;
   const tOutPrimary = document.getElementById('tOutPrimary');
   const tOutCandidates = document.getElementById('tOutCandidates');
   const tCopyPrimary = document.getElementById('tCopyPrimary');
@@ -7595,33 +7670,52 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       : '候補を含む文章（複数候補は [A/B] 形式）';
     if(tExplain) tExplain.textContent = decodeMode
       ? '※桶地下文字を貼り付けると、登録済みの「読み」に変換する。未登録は □ 。'
-      : '※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若い桶地下文字コード（例: 00A が最小）を採用。';
+      : '※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若い桶地下文字コード（例: A00 が最小）を採用。';
 
     tOutput.innerHTML = '';
 
     const primaryParts = [];
     const candParts = [];
 
+    // トークン表示は現在ページぶんだけ（スクロール無し）
+    const totalChars = chars.length;
+    updateTokPager(totalChars);
+    const startIdx = tTokPage * TOKS_PER_PAGE;
+    const endIdx = Math.min(totalChars, startIdx + TOKS_PER_PAGE);
+
     chars.forEach((ch, idx)=>{
-      const tok = document.createElement('div');
-      tok.className = 'tToken';
+      const inView = (idx >= startIdx && idx < endIdx);
 
-      const head = document.createElement('div');
-      head.className = 'tTokHead';
+      let tok=null;
+      let orig=null;
+      let candWrap=null;
 
-      const orig = document.createElement('div');
-      orig.className = 'tOrig';
+      if(inView){
+        tok = document.createElement('div');
+        tok.className = 'tToken';
 
-      const meta = document.createElement('div');
-      meta.style.opacity = '.75';
-      meta.style.fontSize = '12px';
-      meta.textContent = `#${idx+1}`;
+        const head = document.createElement('div');
+        head.className = 'tTokHead';
 
-      head.appendChild(orig);
-      head.appendChild(meta);
-      tok.appendChild(head);
+        orig = document.createElement('div');
+        orig.className = 'tOrig';
 
-      const candWrap = document.createElement('div');
+        const meta = document.createElement('div');
+        meta.style.opacity = '.75';
+        meta.style.fontSize = '12px';
+        meta.textContent = `#${idx+1}`;
+
+        head.appendChild(orig);
+        head.appendChild(meta);
+        tok.appendChild(head);
+
+        candWrap = document.createElement('div');
+        candWrap.className = 'tCandidates';
+      }else{
+        // DOMは作らず、出力文字列の合成だけ行う
+        orig = { textContent: '' };
+      }
+const candWrap = document.createElement('div');
       candWrap.className = 'tCandidates';
 
       // 改行/空白は候補を出さず、そのまま
@@ -7632,7 +7726,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
         const none = document.createElement('div');
         none.className = 'tNone';
         none.textContent = '改行';
-        candWrap.appendChild(none);
+        candWrap && candWrap.appendChild(none);
       }else if(ch===' '){
         orig.textContent = '␠';
         primaryParts.push(' ');
@@ -7640,7 +7734,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
         const none = document.createElement('div');
         none.className = 'tNone';
         none.textContent = '空白';
-        candWrap.appendChild(none);
+        candWrap && candWrap.appendChild(none);
       }else{
         const cp = ch.codePointAt(0);
 
@@ -7681,7 +7775,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
               const none = document.createElement('div');
               none.className = 'tNone';
               none.textContent = '読み未登録';
-              candWrap.appendChild(none);
+              candWrap && candWrap.appendChild(none);
             }else{
               for(const rr of parts){
                 const b = document.createElement('div');
@@ -7703,7 +7797,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
                 b.appendChild(g);
                 b.appendChild(meta2);
                 b.addEventListener('click', ()=>openModal(cp));
-                candWrap.appendChild(b);
+                candWrap && candWrap.appendChild(b);
               }
             }
           }else{
@@ -7713,7 +7807,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
             const none = document.createElement('div');
             none.className = 'tNone';
             none.textContent = '範囲外';
-            candWrap.appendChild(none);
+            candWrap && candWrap.appendChild(none);
           }
         }else{
           // --- 既存: 読み（文章）→ 桶地下文字候補 ---
@@ -7726,7 +7820,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
             const none = document.createElement('div');
             none.className = 'tNone';
             none.textContent = '候補なし（読み未登録 or 未対応）';
-            candWrap.appendChild(none);
+            candWrap && candWrap.appendChild(none);
           }else{
             // 文章出力: 文字コードが小さいものを優先（00A が最小）
             cands.sort((a,b)=>okeCodeOrder(a.okecode)-okeCodeOrder(b.okecode));
@@ -7764,18 +7858,28 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
               b.appendChild(meta2);
 
               b.addEventListener('click', ()=>openModal(c.cp));
-              candWrap.appendChild(b);
+              candWrap && candWrap.appendChild(b);
             }
           }
         }
       }
 
-      tok.appendChild(candWrap);
-      tOutput.appendChild(tok);
+      if(inView && tok && candWrap){
+        tok.appendChild(candWrap);
+        tOutput.appendChild(tok);
+      }
     });
 
-    if(tOutPrimary) tOutPrimary.value = primaryParts.join('');
-    if(tOutCandidates) tOutCandidates.value = candParts.join(decodeMode ? ' ' : '');
+    const primaryText = primaryParts.join('');
+    const candText = candParts.join(decodeMode ? ' ' : '');
+    if(tOutPrimary){
+      if('value' in tOutPrimary) tOutPrimary.value = primaryText;
+      else { tOutPrimary.textContent = primaryText; tOutPrimary.dataset.full = primaryText; }
+    }
+    if(tOutCandidates){
+      if('value' in tOutCandidates) tOutCandidates.value = candText;
+      else { tOutCandidates.textContent = candText; tOutCandidates.dataset.full = candText; }
+    }
   }
 
 
@@ -7790,10 +7894,13 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     // 翻訳表示
     if(translator) {
       if(translatorMode){
+        if(raw !== tLastRaw){ tTokPage = 0; tLastRaw = raw; }
         renderTranslation(raw);
         translator.classList.remove('hidden');
+        document.body.classList.add('modalOpen');
       }else{
         translator.classList.add('hidden');
+        document.body.classList.remove('modalOpen');
         if(tOutput) tOutput.innerHTML = '';
       }
     }
@@ -7842,8 +7949,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       showToast._t2 = setTimeout(()=>{ toast.style.display='none'; }, 180);
     }, 1200);
   }
-  topBtn.addEventListener('click', ()=>{ location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); });
-
+  if(topBtn){ topBtn.addEventListener('click', ()=>{ location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); }); }
   if(filter){
     filter.addEventListener('input', debounceFilter);
     filter.addEventListener('keydown', (e)=>{ if(e.key==='Enter') applyFilter(); });
@@ -8004,20 +8110,58 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     }
   }
 
+
+  function getOutText(el){
+    if(!el) return '';
+    // textarea 互換（旧版）
+    if('value' in el && typeof el.value === 'string') return el.value;
+    // div 版
+    const full = el.dataset?.full;
+    if(full != null && full !== '') return full;
+    return (el.textContent || '').trimEnd();
+  }
+
   // 翻訳出力のコピー
   if(tCopyPrimary) tCopyPrimary.addEventListener('click', async ()=>{
-    const ok = await tryCopy(tOutPrimary?.value || '');
+    const ok = await tryCopy(getOutText(tOutPrimary));
     showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
   });
   if(tCopyCandidates) tCopyCandidates.addEventListener('click', async ()=>{
-    const ok = await tryCopy(tOutCandidates?.value || '');
+    const ok = await tryCopy(getOutText(tOutCandidates));
     showToast(ok ? 'コピーした' : 'コピー失敗…', ok);
   });
 
   // 翻訳表示を閉じる
   if(tClose) tClose.addEventListener('click', ()=>{
     translator?.classList.add('hidden');
+    document.body.classList.remove('modalOpen');
+    if(tOutput) tOutput.innerHTML = '';
   });
+
+
+  // 翻訳トークンのページ切り替え（スクロール無し運用）
+  function updateTokPager(totalChars){
+    if(!tTokPageLabel) return;
+    const totalPages = Math.max(1, Math.ceil(totalChars / TOKS_PER_PAGE));
+    if(tTokPage < 0) tTokPage = 0;
+    if(tTokPage > totalPages-1) tTokPage = totalPages-1;
+    const a = tTokPage*TOKS_PER_PAGE + 1;
+    const b = Math.min(totalChars, (tTokPage+1)*TOKS_PER_PAGE);
+    tTokPageLabel.textContent = `${String(tTokPage).padStart(2,'0')}/${String(totalPages-1).padStart(2,'0')} (${a}〜${b})`;
+    if(tTokPrev) tTokPrev.disabled = (tTokPage<=0);
+    if(tTokNext) tTokNext.disabled = (tTokPage>=totalPages-1);
+  }
+  if(tTokPrev) tTokPrev.addEventListener('click', ()=>{
+    if(!tLastRaw) return;
+    tTokPage = Math.max(0, tTokPage-1);
+    renderTranslation(tLastRaw);
+  });
+  if(tTokNext) tTokNext.addEventListener('click', ()=>{
+    if(!tLastRaw) return;
+    tTokPage = tTokPage+1;
+    renderTranslation(tLastRaw);
+  });
+
 
   copyBtn.addEventListener('click', async ()=>{
     const ok = await tryCopy(codeField.value);
