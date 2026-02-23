@@ -208,15 +208,16 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   .translator{padding:10px 12px;}
   .tCand{padding:8px 9px;}
 }
+
+.dangerGap{display:inline-block;width:18px;}
+.pageGroup{display:inline-flex;align-items:center;gap:6px;margin-left:0;}
+.pageGroup .select{min-width:72px;}
 </style>
 
 <div class="toolbar">
   <h1>桶地下フォント グリフプレビュー（埋め込み版 v2）</h1>
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
 <div class="row" style="margin-top:8px">
-    <button id="prevPage" class="icon" title="前のページ">‹</button>
-    <select id="pageSelect" class="select" title="ページ"></select>
-    <button id="nextPage" class="icon" title="次のページ">›</button>
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
     <button id="clearFilter">クリア</button>
     <small id="count"></small>
@@ -226,6 +227,12 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <button id="exportDict" class="icon" title="辞書を書き出し(JSON)">⤓</button>
   <button id="importDict" class="icon primary" title="辞書を読み込み(JSON)">⤒</button>
   <button id="clearDict" class="icon" title="辞書を全消去">🗑</button>
+  <span class="dangerGap" aria-hidden="true"></span>
+  <div class="pageGroup" aria-label="ページ切り替え">
+    <button id="prevPage" class="icon" title="前のページ">‹</button>
+    <select id="pageSelect" class="select" title="ページ"></select>
+    <button id="nextPage" class="icon" title="次のページ">›</button>
+  </div>
   <span class="spacer"></span>
   <button id="topBtn" class="icon" title="先頭へ">↑</button>
 </div>
@@ -7390,8 +7397,8 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   cells.sort((a,b)=>a.cp-b.cp);
   cells.forEach((c, i)=>{
     const code = toOkeCode(i+1);
-    const pageNum = Math.floor(i / PAGE_SIZE) + 1; // 1-based (00..69)
-    c.page = pageNum;
+    const pageIdx = Math.floor(i / PAGE_SIZE); // 0-based (00..)
+    c.page = pageIdx;
 
     c.okecode = code;
     c.el.dataset.okecode = code;
@@ -7410,24 +7417,24 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   // --- ページング（A: 00〜69, B: 00〜69 ...）---
   const PAGE_SIZE = 20; // 1ページ=20文字
   const totalPages = Math.ceil(cells.length / PAGE_SIZE) || 1;
-  let currentPage = 1;
+  let currentPage = 0;
 
-  function pageLabel(n){ return String(n-1).padStart(2,'0'); }
+  function pageLabel(n){ return String(n).padStart(2,'0'); }
 
   function initPages(){
     if(!pageSelect) return;
     pageSelect.innerHTML = '';
-    for(let p=1; p<=totalPages; p++){
+    for(let p=0; p<totalPages; p++){
       const opt = document.createElement('option');
       opt.value = String(p);
-      opt.textContent = pageLabel(p); // 01, 02 ...
+      opt.textContent = pageLabel(p);
       pageSelect.appendChild(opt);
     }
     pageSelect.value = String(currentPage);
   }
 
   function setPage(p){
-    const np = Math.max(1, Math.min(totalPages, p));
+    const np = Math.max(0, Math.min(totalPages-1, p));
     if(np === currentPage) return;
     currentPage = np;
     if(pageSelect) pageSelect.value = String(currentPage);
@@ -7436,7 +7443,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 
   if(prevPage) prevPage.addEventListener('click', ()=>setPage(currentPage-1));
   if(nextPage) nextPage.addEventListener('click', ()=>setPage(currentPage+1));
-  if(pageSelect) pageSelect.addEventListener('change', ()=>setPage(Number(pageSelect.value||'1')));
+  if(pageSelect) pageSelect.addEventListener('change', ()=>setPage(Number(pageSelect.value||'0')));
 
   // --- 辞書（読み/メモ）: localStorage に保存 ---
   const DICT_KEY = 'okegeshita_dict_v1';
