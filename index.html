@@ -219,22 +219,22 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
 <div class="row" style="margin-top:8px">
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
-    <button id="clearFilter">クリア</button>
+    <button id="clearFilter" type="button">クリア</button>
     <small id="count"></small>
     <span class="badge" id="dictCount">辞書: 0件</span>
   </div>
   <div class="row compact" style="margin-top:6px">
-  <button id="exportDict" class="icon" title="辞書を書き出し(JSON)">⤓</button>
-  <button id="importDict" class="icon primary" title="辞書を読み込み(JSON)">⤒</button>
-  <button id="clearDict" class="icon" title="辞書を全消去">🗑</button>
+  <button id="exportDict" class="icon" title="辞書を書き出し(JSON)" type="button">⤓</button>
+  <button id="importDict" class="icon primary" title="辞書を読み込み(JSON)" type="button">⤒</button>
+  <button id="clearDict" class="icon" title="辞書を全消去" type="button">🗑</button>
   <span class="dangerGap" aria-hidden="true"></span>
   <div class="pageGroup" aria-label="ページ切り替え">
-    <button id="prevPage" class="icon" title="前のページ">‹</button>
+    <button id="prevPage" class="icon" title="前のページ" type="button">‹</button>
     <select id="pageSelect" class="select" title="ページ"></select>
-    <button id="nextPage" class="icon" title="次のページ">›</button>
+    <button id="nextPage" class="icon" title="次のページ" type="button">›</button>
   </div>
   <span class="spacer"></span>
-  <button id="topBtn" class="icon" title="先頭へ">↑</button>
+  <button id="topBtn" class="icon" title="先頭へ" type="button">↑</button>
 </div>
 <input id="dictFile" type="file" accept="application/json,.json" style="display:none">
 
@@ -245,20 +245,20 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   <div class="tHead">
     <span class="badge">翻訳プレビュー</span>
     <small id="tHint">検索欄に文章を入れると、順番どおりに候補を並べる</small>
-    <button id="tClose" class="icon" title="翻訳表示を閉じる">×</button>
+    <button id="tClose" class="icon" title="翻訳表示を閉じる" type="button">×</button>
   </div>
 
   <div class="tSentence" id="tSentence">
     <label id="tLabelPrimary">文章として出力（先頭候補で合成）</label>
     <div class="tSentenceRow">
       <textarea id="tOutPrimary" class="out1" readonly placeholder="ここに桶地下文字の出力が出る"></textarea>
-      <button id="tCopyPrimary" class="icon copyBtn" title="出力をコピー">⧉</button>
+      <button id="tCopyPrimary" class="icon copyBtn" title="出力をコピー" type="button">⧉</button>
     </div>
 
     <label id="tLabelCandidates" style="margin-top:10px">候補を含む文章（複数候補は [A/B] 形式）</label>
     <div class="tSentenceRow">
       <textarea id="tOutCandidates" class="out2" readonly placeholder="ここに候補つき文章が出る"></textarea>
-      <button id="tCopyCandidates" class="icon copyBtn" title="候補つき文章をコピー">⧉</button>
+      <button id="tCopyCandidates" class="icon copyBtn" title="候補つき文章をコピー" type="button">⧉</button>
     </div>
     <div class="hint" id="tExplain">※読みが未登録の文字は □ で埋める（順番は崩さない）。候補が複数ある場合、上の「先頭候補」は一番若いU+を採用。</div>
   </div>
@@ -7284,16 +7284,16 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
           <div class="metaRow">
             <span class="label">元の文字コード</span>
             <input id="codeField" class="mono" readonly value="U+0000" />
-            <button class="mini" id="copyBtn" title="コピー">Copy</button>
+            <button class="mini" id="copyBtn" title="コピー" type="button">Copy</button>
           </div>
           <div class="metaRow">
             <span class="label">桶地下文字コード</span>
             <input id="okecodeField" class="mono" readonly value="01A" />
-            <button class="mini" id="copyOkeBtn" title="コピー">Copy</button>
+            <button class="mini" id="copyOkeBtn" title="コピー" type="button">Copy</button>
           </div>
         </div>
       </div>
-      <button id="close" class="iconBtn" aria-label="閉じる">✕</button>
+      <button id="close" class="iconBtn" aria-label="閉じる" type="button">✕</button>
     </div>
 
     <div class="modalBody">
@@ -7308,9 +7308,9 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
       </div>
 
       <div class="modalActions">
-        <button class="primary" id="saveDictBtn">保存</button>
-        <button id="deleteDictBtn">削除</button>
-        <button id="jumpHereBtn">リンク</button>
+        <button class="primary" id="saveDictBtn" type="button">保存</button>
+        <button id="deleteDictBtn" type="button">削除</button>
+        <button id="jumpHereBtn" type="button">リンク</button>
       </div>
 
       <div class="hint" id="modalHint">
