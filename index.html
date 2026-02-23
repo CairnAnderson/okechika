@@ -215,7 +215,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
 </style>
 
 <div class="toolbar">
-  <h1>桶地下フォント グリフプレビュー（埋め込み版 v2）</h1>
+  <h1>桶地下文字変換ツール</h1>
   <p>U+4E00〜U+5377（1400文字）。セルを押すと詳細とコードが出る。コピーは環境によって制限されるので「選択してコピー」も用意。</p>
 <div class="row" style="margin-top:8px">
     <input id="filter" placeholder="検索: 文字 / U+4E00 / 4E00" inputmode="latin" autocomplete="off" />
@@ -7393,29 +7393,32 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   }
 
 
+
+  // ページング設定：1ページ20文字（コードポイント順）
+  const PAGE_SIZE = 20;
+
   // cells はコードポイント順に並んでいる前提
   cells.sort((a,b)=>a.cp-b.cp);
+
+  // --- 桶地下文字コード（A00..T69）を割り当て＆ページ番号を付与 ---
   cells.forEach((c, i)=>{
-    const code = toOkeCode(i+1);
-    const pageIdx = Math.floor(i / PAGE_SIZE); // 0-based (00..)
+    const code = toOkeCode(i+1);            // 1-based
+    const pageIdx = Math.floor(i / PAGE_SIZE); // 0-based
     c.page = pageIdx;
 
     c.okecode = code;
     c.el.dataset.okecode = code;
-    const codeEl = c.el.querySelector('.code');
-    if(codeEl) codeEl.textContent = code;
+
     okecodeByCp.set(c.cp, code);
-    c.el.title = `${code} / U+${keyForCp(c.cp)} / ${c.glyph}`;
+
     // セル下の表示コードを「桶地下文字コード」にする
     const codeEl = c.el.querySelector('.code');
     if(codeEl) codeEl.textContent = code;
+
+    c.el.title = `${code} / U+${keyForCp(c.cp)} / ${c.glyph}`;
   });
 
-;
-
-
-  // --- ページング（A: 00〜69, B: 00〜69 ...）---
-  const PAGE_SIZE = 20; // 1ページ=20文字
+  // --- ページング（00..）---
   const totalPages = Math.ceil(cells.length / PAGE_SIZE) || 1;
   let currentPage = 0;
 
@@ -7441,98 +7444,21 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     applyFilter();
   }
 
-  if(prevPage) prevPage.addEventListener('click', ()=>setPage(currentPage-1));
-  if(nextPage) nextPage.addEventListener('click', ()=>setPage(currentPage+1));
+  if(prevPage) prevPage.addEventListener('click', (e)=>{ e.preventDefault(); setPage(currentPage-1); });
+  if(nextPage) nextPage.addEventListener('click', (e)=>{ e.preventDefault(); setPage(currentPage+1); });
   if(pageSelect) pageSelect.addEventListener('change', ()=>setPage(Number(pageSelect.value||'0')));
 
-  // --- 辞書（読み/メモ）: localStorage に保存 ---
-  const DICT_KEY = 'okegeshita_dict_v1';
-  /** @type {Record<string, {reading?:string, note?:string, updatedAt?:number}>} */
-  let dict = {};
-
-  function loadDict(){
-    try{
-      dict = JSON.parse(localStorage.getItem(DICT_KEY) || '{}') || {};
-    }catch{
-      dict = {};
-    }
-  }
-  function saveDict(){
-    try{
-      localStorage.setItem(DICT_KEY, JSON.stringify(dict));
-    }catch(e){
-      console.warn(e);
-      showToast('保存できなかった（容量制限かも）', false);
-    }
-    updateDictCount();
-  }
-
-  function updateDictCount(){
-    if(!dictCount) return;
-    dictCount.textContent = '辞書: ' + Object.keys(dict).length + '件';
-  }
-
-  function keyForCp(cp){
-    return cp.toString(16).toUpperCase().padStart(4,'0');
-  }
-
-
-  // okecode order (new): A00 is smallest ... T69 is largest
-  function okeCodeOrder(code){
-    if(!code) return Number.POSITIVE_INFINITY;
-    const m = String(code).match(/^([A-T])(\d{2})$/);
-    if(!m) return Number.POSITIVE_INFINITY;
-    const letter = m[1].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
-    const num = parseInt(m[2],10); // 00..69
-    // 数字優先（00→69）、同一数字内はアルファベット優先（A→T）
-    return num*20 + letter;
-  }
-
-
-  function ensureReadingTag(cellEl){
-    let r = cellEl.querySelector('.reading');
-    if(!r){
-      r = document.createElement('div');
-      r.className = 'reading';
-      cellEl.appendChild(r);
-    }
-    return r;
-  }
-
-  function renderReadingsOnGrid(){
-    for(const c of cells){
-      const k = keyForCp(c.cp);
-      const entry = dict[k];
-      const rEl = ensureReadingTag(c.el);
-      const text = entry?.reading ? entry.reading : '';
-      rEl.textContent = text || '—';
-      rEl.style.display = '';
-    }
-  }
-
-  function mergeDict(incoming){
-    if(!incoming || typeof incoming !== 'object') return false;
-    for(const [k,v] of Object.entries(incoming)){
-      if(!/^[0-9A-F]{2,6}$/i.test(k)) continue;
-      if(!v || typeof v !== 'object') continue;
-      dict[k.toUpperCase()] = {
-        reading: String(v.reading ?? '').trim(),
-        note: String(v.note ?? '').trim(),
-        updatedAt: Date.now()
-      };
-    }
-    saveDict();
-    renderReadingsOnGrid();
-    return true;
-  }
-
   loadDict();
+  updateDictCount();
+  initPages();
   updateDictCount();
   initPages();
 
   function updateCount(visible, tRaw){
     if(!count) return;
-    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages)}（${pageLabel(currentPage)}00〜${pageLabel(currentPage)}69）`;
+    const from = currentPage*PAGE_SIZE + 1;
+    const to = Math.min((currentPage+1)*PAGE_SIZE, cells.length);
+    const pageTxt = `ページ ${pageLabel(currentPage)} / ${pageLabel(totalPages-1)}（${from}〜${to}）`;
     count.textContent = `${visible} / ${cells.length} 表示 ・ ${pageTxt}`;
     if(tHint){
       if(tRaw){
