@@ -14,17 +14,17 @@
   --accent:rgba(124,92,255,.95); --ok:rgba(43,213,118,.95);
 }
 *{box-sizing:border-box;}
-body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:16px;}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:12px;}
 h1{margin:0 0 6px;font-size:18px;}
 p{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.4;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:10px;}
-.cell{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;background:rgba(255,255,255,.05);
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;}
+.cell{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;background:rgba(255,255,255,.05);
       cursor:pointer; user-select:none; -webkit-tap-highlight-color: rgba(0,0,0,0);}
 .cell:active{transform: translateY(1px);}
-.glyph{font-family:"Underground", sans-serif;font-size:28px;line-height:1.2;}
-.code{font-size:11px;opacity:.7;margin-top:6px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
+.glyph{font-family:"Underground", sans-serif;font-size:22px;line-height:1.1;}
+.code{font-size:10px;opacity:.75;margin-top:4px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;}
 
-.toolbar{position:sticky; top:0; z-index:5; padding:12px; padding-top:calc(12px + env(safe-area-inset-top)); margin:-16px -16px 12px; 
+.toolbar{position:sticky; top:0; z-index:5; padding:10px; padding-top:calc(10px + env(safe-area-inset-top)); margin:-12px -12px 10px; 
           background: rgba(15,15,18,.88); backdrop-filter: blur(10px); border-bottom:1px solid var(--line);}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 input{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
@@ -169,7 +169,7 @@ small{color:var(--muted);}
 }
 
 
-.reading{font-size:11px;opacity:.85;margin-top:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color: rgba(255,255,255,.78);}
+.reading{font-size:10px;opacity:.9;margin-top:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color: rgba(255,255,255,.78);}
 .badge{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--muted);}
 details{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.04);}
 textarea{width:100%;min-height:120px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);padding:10px;font-size:14px;resize:vertical;}
@@ -7366,7 +7366,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     code: cell.querySelector('.code')?.textContent || '',
     glyph: cell.querySelector('.glyph')?.textContent || ''
   }))
-  // --- 桶地下文字コード（01A〜01T, 02A〜02T ...）を割り当て ---
+  // --- 桶地下文字コード（A00〜T00, A01〜T01 ...）を割り当て ---
   const OKE_LETTERS = 'ABCDEFGHIJKLMNOPQRST'.split(''); // A〜T (20文字)
   /** @type {Map<number,string>} */
   const okecodeByCp = new Map();
@@ -7376,7 +7376,7 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
     const idx = (n - 1) % OKE_LETTERS.length;
     const num = Math.floor((n - 1) / OKE_LETTERS.length);
     const numStr = String(num).padStart(2,'0'); // 01, 02 ...
-    return numStr + OKE_LETTERS[idx];
+    return OKE_LETTERS[idx] + numStr;
   }
 
   // cells はコードポイント順に並んでいる前提
@@ -7462,14 +7462,14 @@ label{font-size:12px;color:var(--muted);display:block;margin:10px 0 6px;}
   }
 
 
-  // okecode order: 00A is smallest ... 69T is largest
+  // okecode order: A00 is smallest ... T69 is largest
   function okeCodeOrder(code){
     if(!code) return Number.POSITIVE_INFINITY;
-    const m = String(code).match(/^(\d{2})([A-T])$/);
+    const m = String(code).match(/^([A-T])(\d{2})$/);
     if(!m) return Number.POSITIVE_INFINITY;
-    const page = parseInt(m[1],10);
-    const letter = m[2].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
-    return page*100 + letter;
+    const letter = m[1].charCodeAt(0) - 'A'.charCodeAt(0); // A=0 ... T=19
+    const num = parseInt(m[2],10);
+    return letter*100 + num;
   }
 
   function ensureReadingTag(cellEl){
